@@ -1,0 +1,259 @@
+[
+    {
+        "meta": {
+            "created_at": "2026-07-04T21:10:35.387946300Z",
+            "source": "patches-1.33.0.mpp",
+            "sha256": "4c4b3075d8e07f082dde7649d3702443379b1a42c6b8e934ab06093cbf229df2"
+        },
+        "patches": {
+            "Override certificate pinning": {
+                "enabled": false
+            },
+            "Change package name": {
+                "enabled": true,
+                "options": {
+                    "packageName": "app.vantage.youtube.morphe",
+                    "updatePermissions": false,
+                    "updateProviders": false
+                }
+            },
+            "Disable Play Store updates": {
+                "enabled": false
+            },
+            "Hide ads": {
+                "enabled": true
+            },
+            "Video ads": {
+                "enabled": true
+            },
+            "Copy video link": {
+                "enabled": true
+            },
+            "Remove viewer discretion dialog": {
+                "enabled": true
+            },
+            "Disable double tap actions": {
+                "enabled": true
+            },
+            "Double tap to seek": {
+                "enabled": true
+            },
+            "Downloads": {
+                "enabled": true
+            },
+            "Disable haptic feedback": {
+                "enabled": true
+            },
+            "Loop video": {
+                "enabled": true
+            },
+            "Play all": {
+                "enabled": true
+            },
+            "Reload video": {
+                "enabled": true
+            },
+            "Save to watch later": {
+                "enabled": true
+            },
+            "Seekbar": {
+                "enabled": true
+            },
+            "Swipe controls": {
+                "enabled": true
+            },
+            "Custom branding": {
+                "enabled": true,
+                "options": {
+                    "customName": "Vantage M",
+                    "customIcon": "config/icon/vantage-morphe"
+                }
+            },
+            "Change header": {
+                "enabled": true,
+                "options": {
+                    "custom": null
+                }
+            },
+            "Hide video action buttons": {
+                "enabled": true
+            },
+            "Navigation bar": {
+                "enabled": true
+            },
+            "Hide player overlay buttons": {
+                "enabled": true
+            },
+            "Captions": {
+                "enabled": true
+            },
+            "Disable layout updates": {
+                "enabled": true
+            },
+            "Add to queue": {
+                "enabled": true
+            },
+            "Change form factor": {
+                "enabled": true
+            },
+            "Ambient mode": {
+                "enabled": true
+            },
+            "Hide autoplay preview": {
+                "enabled": true
+            },
+            "Hide end screen cards": {
+                "enabled": true
+            },
+            "Hide end screen suggested video": {
+                "enabled": true
+            },
+            "Hide layout components": {
+                "enabled": true
+            },
+            "Hide info cards": {
+                "enabled": true
+            },
+            "Hide player flyout menu components": {
+                "enabled": true
+            },
+            "Disable player popup panels": {
+                "enabled": true
+            },
+            "Hide related video overlay": {
+                "enabled": true
+            },
+            "Hide related videos": {
+                "enabled": true
+            },
+            "Disable rolling number animations": {
+                "enabled": true
+            },
+            "Hide Shorts components": {
+                "enabled": true,
+                "options": {
+                    "hideShortsAppShortcut": false,
+                    "hideShortsWidget": false
+                }
+            },
+            "Disable sign in to TV popup": {
+                "enabled": true
+            },
+            "Hide timestamp": {
+                "enabled": true
+            },
+            "Open channel of live avatar": {
+                "enabled": true
+            },
+            "Miniplayer": {
+                "enabled": true
+            },
+            "Override YouTube Music buttons": {
+                "enabled": true
+            },
+            "Disable fullscreen gestures": {
+                "enabled": true
+            },
+            "Exit fullscreen mode": {
+                "enabled": true
+            },
+            "Open videos fullscreen": {
+                "enabled": true
+            },
+            "Custom player overlay opacity": {
+                "enabled": true
+            },
+            "Return YouTube Dislike": {
+                "enabled": true
+            },
+            "Open system share sheet": {
+                "enabled": true
+            },
+            "Shorts autoplay": {
+                "enabled": true
+            },
+            "Disable Shorts resuming on startup": {
+                "enabled": true
+            },
+            "Open Shorts in regular player": {
+                "enabled": true
+            },
+            "SponsorBlock": {
+                "enabled": true
+            },
+            "Spoof app version": {
+                "enabled": true
+            },
+            "Change start page": {
+                "enabled": true
+            },
+            "Theme": {
+                "enabled": true,
+                "options": {
+                    "darkThemeBackgroundColor": "@android:color/black",
+                    "lightThemeBackgroundColor": "@android:color/white"
+                }
+            },
+            "Alternative thumbnails": {
+                "enabled": true
+            },
+            "Bypass image region restrictions": {
+                "enabled": true
+            },
+            "Remove background playback restrictions": {
+                "enabled": true
+            },
+            "Enable debugging": {
+                "enabled": true
+            },
+            "Spoof device dimensions": {
+                "enabled": true
+            },
+            "Check watch history domain name resolution": {
+                "enabled": true
+            },
+            "GmsCore support": {
+                "enabled": true
+            },
+            "Bypass link redirects": {
+                "enabled": true
+            },
+            "Open links externally": {
+                "enabled": true
+            },
+            "Media notification controls": {
+                "enabled": true
+            },
+            "Sanitize sharing links": {
+                "enabled": true
+            },
+            "Network proxy": {
+                "enabled": true
+            },
+            "Disable QUIC protocol": {
+                "enabled": true
+            },
+            "Spoof video streams": {
+                "enabled": true
+            },
+            "Disable DRC audio": {
+                "enabled": true
+            },
+            "Force original audio": {
+                "enabled": true
+            },
+            "Disable video codecs": {
+                "enabled": true
+            },
+            "Video quality": {
+                "enabled": true
+            },
+            "Playback speed": {
+                "enabled": true
+            },
+            "Voice over translation": {
+                "enabled": true
+            }
+        }
+    }
+]

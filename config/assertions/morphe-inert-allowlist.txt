@@ -1,0 +1,2 @@
+# Morphe-build patches allowed to log "not supported in this version" without
+# failing, one per line. Empty: none are inert on YouTube 20.51.39.

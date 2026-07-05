@@ -1,0 +1,15 @@
+# Patches that must be applied for the Vantage M (Morphe) build, one per line.
+# This variant uses the Morphe default set, without comment hiding or Return
+# YouTube Username. Count isn't checked since the default set grows.
+Hide ads
+Video ads
+SponsorBlock
+Return YouTube Dislike
+Alternative thumbnails
+Hide Shorts components
+Disable Shorts resuming on startup
+Change start page
+Remove background playback restrictions
+Custom branding
+Change package name
+GmsCore support

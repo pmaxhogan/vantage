@@ -1,0 +1,38 @@
+# Build outputs and working dirs (never committed - CI produces them fresh)
+/build/
+/out/
+/dist/
+/tmp/
+/work/
+/morphe-data/
+
+# Downloaded toolchain + patch bundles (resolved/pinned at build time)
+*.jar
+*.mpp
+
+# Downloaded stock APKs and patched artifacts (sourced/built at run time)
+*.apk
+
+# Result/log scratch from local runs
+*result.json
+*patch.log
+*.log
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+
+# NOTE: config/ is intentionally NOT ignored (options JSONs, assertion data,
+# icon PNGs) - do not add rules that would exclude it. The signing key never
+# lives in the tree; it's decoded from a secret at build time (see
+# keystore/README.md).
+!config/
+!config/**
+
+# ...but NEVER commit a morphe-cli temp/patching workspace, even if a bad -t path
+# drops one under config/ (these are huge extracted-APK trees). Re-exclude them
+# AFTER the config/ re-includes above so these win.
+config/**/patching-*/
+config/**/vt/
+**/patching-*/

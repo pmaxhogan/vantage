@@ -1,0 +1,12 @@
+# Patches that must be applied for the Vantage YouTube build, one per line.
+# Names must match the anddea patch names exactly so an upstream rename trips
+# this guard.
+Hide ads
+SponsorBlock
+Return YouTube Dislike
+Alternative thumbnails
+Hide comments components
+Shorts components
+Disable resuming Shorts on startup
+Change start page
+Remove background playback restrictions

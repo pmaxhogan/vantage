@@ -1,0 +1,3 @@
+# YouTube patches allowed to log "not supported in this version" without failing,
+# one per line. Empty on 20.51.39. Add a name here if a version bump makes a
+# curated patch inert.

@@ -1,0 +1,8 @@
+* text=auto eol=lf
+
+# Binary assets - never normalize
+*.apk binary
+*.keystore binary
+*.jar binary
+*.png binary
+*.mpp binary

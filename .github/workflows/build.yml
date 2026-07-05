@@ -1,0 +1,73 @@
+name: Build Vantage
+
+on:
+  schedule:
+    # Daily. build.sh skips early (exit 0) when no upstream patch version changed,
+    # so most ticks are cheap no-ops.
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force a build even if no upstream patch versions changed"
+        type: boolean
+        default: false
+
+# A manual run overlapping the cron shouldn't double-build, so queue it rather
+# than cancelling the one in progress.
+concurrency:
+  group: vantage-build
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # create Releases + read/write the stock-cache release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45   # ~6min patch + ~250MB download, with headroom
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Signing keystore, decoded from this base64 secret at build time. PASS is
+      # required; ALIAS defaults to vantage if unset.
+      VANTAGE_KEYSTORE_B64: ${{ secrets.VANTAGE_KEYSTORE_B64 }}
+      VANTAGE_KEYSTORE_PASS: ${{ secrets.VANTAGE_KEYSTORE_PASS }}
+      VANTAGE_KEYSTORE_ALIAS: ${{ secrets.VANTAGE_KEYSTORE_ALIAS }}
+      # Keystore guards (see keystore/README.md); both should be set in CI.
+      VANTAGE_KEYSTORE_SHA256: ${{ secrets.VANTAGE_KEYSTORE_SHA256 }}
+      VANTAGE_CERT_SHA256: ${{ secrets.VANTAGE_CERT_SHA256 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Show toolchain
+        run: |
+          java -version
+          echo "ANDROID_HOME=$ANDROID_HOME  ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          # ubuntu-latest ships the Android SDK (aapt/apksigner) - just confirm.
+          ls "$ANDROID_HOME/build-tools" 2>/dev/null | tail -3 || true
+          jq --version
+
+      - name: Build Vantage (resolve, skip-if-unchanged, patch x3, assert, release)
+        run: |
+          set -euo pipefail
+          FORCE=""
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE="--force"; fi
+          bash scripts/build.sh $FORCE --release
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vantage-build-logs
+          path: |
+            build/out/*.log
+            build/out/*-result.json
+            build/resolved.env
+          if-no-files-found: ignore
+          retention-days: 14

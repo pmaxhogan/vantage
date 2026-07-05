@@ -1,0 +1,39 @@
+name: Probe download sources
+
+# Diagnostic workflow, run by hand to see which stock-APK sources actually work
+# from a GitHub runner IP. Doesn't patch, release, or touch the cache.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/build-tools" 2>/dev/null | tail -1 || true
+          jq --version; command -v aapt aapt2 apksigner || true
+      - name: Probe sources
+        run: bash scripts/probe-sources.sh
+
+      # Check whether curl_cffi (Chrome TLS impersonation) gets past Cloudflare
+      # from a GitHub runner IP. Downloads to /tmp, so the cache is untouched.
+      - name: Probe curl_cffi (APKMirror + APKPure) from datacenter IP
+        run: |
+          python3 -m pip install --quiet --user curl_cffi \
+            || python3 -m pip install --quiet --break-system-packages curl_cffi \
+            || python3 -m pip install --quiet curl_cffi
+          for src in apkmirror apkpure; do
+            echo "=== $src YouTube 20.51.39 ==="
+            if python3 "scripts/${src}-dl.py" com.google.android.youtube 20.51.39 universal "/tmp/$src.apk"; then
+              echo "$src: OK size=$(wc -c </tmp/$src.apk) magic=$(head -c2 /tmp/$src.apk)"
+            else
+              echo "$src: FAIL (blocked from datacenter IP or resolver error)"
+            fi
+          done

@@ -1,0 +1,9 @@
+# Patches that must be applied for the Vantage Music build, one per line. The
+# count isn't checked since the Music default set grows over time.
+Hide ads
+SponsorBlock
+Return YouTube Dislike
+Remove background playback restrictions
+GmsCore support
+Custom branding name for YouTube Music
+Settings for YouTube Music

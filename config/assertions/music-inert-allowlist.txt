@@ -1,0 +1,11 @@
+# Music patches allowed to log "not supported in this version" without failing
+# the build, one per line. These are inert on YouTube Music 9.15.51; re-check
+# after a version bump.
+Disable dislike redirection
+Enable compact dialog
+Hide handle
+Replace Samples button
+Replace Upgrade button
+Change player background color
+Enable smooth transition animation
+Restore old comments popup panels

@@ -225,7 +225,7 @@
                 "enabled": true
             },
             "Description components": {
-                "enabled": false
+                "enabled": true
             },
             "Hide player flyout menu": {
                 "enabled": false

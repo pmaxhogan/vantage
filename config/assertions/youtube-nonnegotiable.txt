@@ -6,6 +6,8 @@ SponsorBlock
 Return YouTube Dislike
 Alternative thumbnails
 Hide comments components
+Hide feed components
+Description components
 Shorts components
 Disable resuming Shorts on startup
 Change start page

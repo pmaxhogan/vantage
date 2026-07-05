@@ -6,6 +6,13 @@ something a patch sets by itself. The anddea patch fork we build from bakes thes
 defaults into its `.mpp`, so a fresh install already behaves correctly with no
 in-app import step.
 
+> Note: Shorts playback is hard-disabled in the build itself - a fork change to
+> the Shorts playback-start hook (`ShortsPatch.openShortInRegularPlayer`), not a
+> setting. Every entry point (channel Shorts tab, home-screen widget, direct
+> link, playlist, Liked Videos) is intercepted so no Short can play, and there is
+> no toggle to re-enable it. The `hide_shorts_*` settings below only remove Shorts
+> from view; the hard block is what makes playback impossible.
+
 The files here are just optional reset-to-baseline exports: import one to snap a
 customized install back to the shipped defaults. They are not the delivery
 mechanism.
@@ -35,7 +42,9 @@ These are the app's own RVX settings export format, not generic JSON:
   shelves hidden everywhere (master `hide_shorts_shelf` + channel + watch-history;
   home/subscriptions/search are default-on); comments section hidden; community
   posts hidden (channel + subs); DeArrow alternative thumbnails on all 5 surfaces;
-  copy-video-URL and copy-timestamp-URL overlay buttons shown. SponsorBlock / RYD
+  copy-video-URL and copy-timestamp-URL overlay buttons shown; Playables hidden
+  from the feed; the AI-generated video summary and Ask (Gemini) sections hidden
+  in the video description. SponsorBlock / RYD
   / disable-resume-Shorts / hide-ads are RVX build defaults (already on, so not
   listed). `hide_shorts_shelf` is a master toggle - without it on, the per-surface
   Shorts-shelf hiding does nothing (this was the "still see Shorts" gap).

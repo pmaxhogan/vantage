@@ -11,6 +11,19 @@ log()  { printf '%s [vantage] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 warn() { printf '%s [vantage][WARN] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
 die()  { printf '%s [vantage][FAIL] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; exit 1; }
 
+# Re-run a command a few times before giving up. GitHub's release/asset API
+# throws the odd 5xx, so wrap the flaky network calls in this.
+retry() {
+  local tries="$1"; shift
+  local n=1
+  until "$@"; do
+    if [ "$n" -ge "$tries" ]; then return 1; fi
+    warn "attempt $n/$tries failed, retrying in $((n*5))s: $*"
+    sleep "$((n*5))"
+    n=$((n+1))
+  done
+}
+
 # ---- config --------------------------------------------------------------
 load_build_env() {
   local env_file="$VANTAGE_ROOT/config/build.env"

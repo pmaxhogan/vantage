@@ -188,12 +188,12 @@ if [ -n "$DO_RELEASE" ]; then
   [ -f "$OUTDIR/obtainium-config.json" ] && local_assets+=("$OUTDIR/obtainium-config.json")
   if gh release view "$TAG" -R "$GH_REPO" >/dev/null 2>&1; then
     log "release $TAG exists - updating in place (clobber assets + notes)"
-    gh release edit "$TAG" -R "$GH_REPO" --notes-file "$local_notes" || warn "could not update release notes"
-    gh release upload "$TAG" -R "$GH_REPO" "${local_assets[@]}" --clobber \
+    retry 4 gh release edit "$TAG" -R "$GH_REPO" --notes-file "$local_notes" || warn "could not update release notes"
+    retry 4 gh release upload "$TAG" -R "$GH_REPO" "${local_assets[@]}" --clobber \
       || die "failed to upload assets to existing release $TAG"
   else
     log "creating GitHub release $TAG on $GH_REPO"
-    gh release create "$TAG" -R "$GH_REPO" --title "$TAG" --notes-file "$local_notes" \
+    retry 4 gh release create "$TAG" -R "$GH_REPO" --title "$TAG" --notes-file "$local_notes" \
       "${local_assets[@]}"
   fi
 fi

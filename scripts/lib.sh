@@ -32,6 +32,28 @@ load_build_env() {
   set -a; . "$env_file"; set +a
 }
 
+# ---- signing keystore ----------------------------------------------------
+# Materialize the signing keystore to $1 from the VANTAGE_KEYSTORE_B64 secret
+# (CI) or a local VANTAGE_KEYSTORE_FILE, then export the pass + alias. base64
+# round-trips byte-for-byte, so the decoded file still matches the pinned
+# VANTAGE_KEYSTORE_SHA256 guard. Shared by build.sh and build-x.sh so the two
+# never drift. The key is never committed - the repo is public.
+resolve_signing_keystore() {
+  local dest="${1:?keystore dest path}"
+  if [ -n "${VANTAGE_KEYSTORE_B64:-}" ]; then
+    printf '%s' "$VANTAGE_KEYSTORE_B64" | base64 -d > "$dest" \
+      || die "failed to base64-decode VANTAGE_KEYSTORE_B64"
+    log "decoded signing keystore from VANTAGE_KEYSTORE_B64"
+  elif [ -n "${VANTAGE_KEYSTORE_FILE:-}" ] && [ -f "${VANTAGE_KEYSTORE_FILE}" ]; then
+    cp "$VANTAGE_KEYSTORE_FILE" "$dest"
+    log "using local signing keystore from VANTAGE_KEYSTORE_FILE"
+  else
+    die "no signing keystore: set VANTAGE_KEYSTORE_B64 (CI secret) or VANTAGE_KEYSTORE_FILE (local path)"
+  fi
+  : "${VANTAGE_KEYSTORE_PASS:?VANTAGE_KEYSTORE_PASS must be set (keystore + entry password)}"
+  export VANTAGE_KEYSTORE_PASS VANTAGE_KEYSTORE_ALIAS="${VANTAGE_KEYSTORE_ALIAS:-vantage}"
+}
+
 # ---- Android SDK tools ---------------------------------------------------
 # ubuntu-latest ships the Android SDK (aapt/aapt2/apksigner). Prefer PATH, then
 # $ANDROID_HOME / $ANDROID_SDK_ROOT build-tools (highest version wins).
@@ -63,10 +85,17 @@ resolve_target_version() {
   if [ -n "$pin" ]; then printf '%s\n' "$pin"; return 0; fi
   local out; out="$(java -jar "$jar" list-versions --patches="$mpp" -f "$pkg" 2>/dev/null \
     | sed 's/\x1b\[[0-9;]*m//g')"
-  # Lines like "\t20.51.39 (60 patches)". Take max patch-count tier, newest ver.
+  # Lines like "\t20.51.39 (60 patches)" or "\t12.2.0-release.0 (67 patches)". Take
+  # the max patch-count tier, then the newest version in it. Keep the FULL version
+  # token (everything before " (") instead of a digits-only regex, so a suffixed
+  # string like "12.2.0-release.0" survives for the versionName gate - stripping it
+  # to "12.2.0" would never match the real APK. Drop "-ripped" targets: those are
+  # repackaged, non-vendor-signed builds that can't pass the signing-cert gate.
   local maxc; maxc="$(grep -oE '\(([0-9]+) patches\)' <<<"$out" | grep -oE '[0-9]+' | sort -n | tail -1)"
   [ -n "$maxc" ] || die "list-versions produced no versions for $pkg"
-  grep -E "\($maxc patches\)" <<<"$out" | grep -oE '[0-9]+(\.[0-9]+)+' | sort -V | tail -1
+  grep -E "\($maxc patches\)" <<<"$out" \
+    | sed -E 's/^[[:space:]]+//; s/[[:space:]]*\([0-9]+ patches\).*$//' \
+    | grep -viE 'ripped' | sort -V | tail -1
 }
 
 # Read a data file into a bash array, skipping blank lines and # comments.

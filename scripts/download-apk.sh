@@ -48,7 +48,8 @@ py_source() {
   local script="$1" out="$2" py
   py="$(command -v python3 || command -v python || true)"
   if [ -z "$py" ]; then warn "  ${script%.py}: python3 not found - skipping"; return 1; fi
-  "$py" "$VANTAGE_ROOT/scripts/$script" "$PKG" "$VER" "$ARCH" "$out"
+  # 5th arg is the container (apk|apkm); apkmirror-dl.py picks the APK vs BUNDLE row.
+  "$py" "$VANTAGE_ROOT/scripts/$script" "$PKG" "$VER" "$ARCH" "$out" "${CONTAINER:-apk}"
 }
 
 # ===========================================================================
@@ -255,9 +256,100 @@ src_apkmirror() { py_source apkmirror-dl.py "$1"; }
 # scripts/apkpure-dl.py. (.com Cloudflare-blocks even curl_cffi; .net serves.)
 src_apkpure() { py_source apkpure-dl.py "$1"; }
 
+# ===========================================================================
+# verify_apkm() - the gate for a split APKM bundle (X/Twitter). An APKM is a zip
+# of per-split *.apk files (base + config.<abi>/<dpi>/<lang>) plus metadata.
+# morphe patches the APKM directly, so we can't collapse it to a single base APK;
+# instead we verify EVERY nested split is genuinely signed by the package's known
+# cert, so a hostile mirror can't slip in a tampered split (native lib/resources)
+# behind a genuine base.
+#   1. valid zip (PK magic + integrity)
+#   2. no duplicate *.apk entry names (else the bytes we verify != what morphe reads)
+#   3. at least one nested *.apk (it's a bundle, not a bare APK)
+#   4. every nested *.apk is apksigner-verified and carries an expected cert
+#   5. some split reports the expected package + versionName (the base)
+# ===========================================================================
+verify_apkm() {
+  local apkm="$1" aapt apksigner
+  if ! apk_has_pk_magic "$apkm"; then
+    warn "  reject: not a valid APKM (no PK zip magic - likely HTML/challenge)"; return 1
+  fi
+  command -v unzip >/dev/null 2>&1 || { warn "  reject: unzip required to verify an APKM"; return 1; }
+  if ! unzip -qt "$apkm" >/dev/null 2>&1; then
+    warn "  reject: APKM zip integrity check failed (truncated/corrupt download)"; return 1
+  fi
+
+  local names dups
+  names="$(unzip -Z1 "$apkm" 2>/dev/null | grep -iE '\.apk$' || true)"
+  dups="$(sort <<<"$names" | uniq -d)"
+  if [ -n "$dups" ]; then
+    warn "  reject: APKM has duplicate .apk entry names: $(tr '\n' ' ' <<<"$dups")"; return 1
+  fi
+  if [ -z "$names" ]; then
+    warn "  reject: APKM contains no nested *.apk (not a split bundle)"; return 1
+  fi
+
+  aapt="$(find_sdk_tool aapt || find_sdk_tool aapt.exe || true)"
+  apksigner="$(find_sdk_tool apksigner || find_sdk_tool apksigner.bat || true)"
+  [ -n "$aapt" ]      || { warn "  reject: aapt not found - cannot verify APKM (Android SDK required)"; return 1; }
+  [ -n "$apksigner" ] || { warn "  reject: apksigner not found - cannot verify APKM (Android SDK required)"; return 1; }
+  local expected; expected="$(expected_sigs_for "$PKG")"
+  if [ -z "$expected" ]; then
+    warn "  reject: no expected signatures for '$PKG' in $SIG_FILE - refusing an unpinned package"; return 1
+  fi
+
+  local xd; xd="$(mktemp -d)"
+  if ! unzip -qo "$apkm" '*.apk' -d "$xd" 2>/dev/null; then
+    warn "  reject: could not extract splits from APKM"; rm -rf "$xd"; return 1
+  fi
+
+  local base_ok=0 nsplits=0 f rc certs got g matched badging pkg_got ver_got
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    nsplits=$((nsplits+1))
+    certs="$("$apksigner" verify --print-certs "$f" 2>/dev/null)"; rc=$?
+    if [ "$rc" -ne 0 ]; then
+      warn "  reject: split $(basename "$f") failed apksigner verification (unsigned/tampered)"; rm -rf "$xd"; return 1
+    fi
+    got="$(grep -i 'certificate SHA-256 digest' <<<"$certs" | awk '{print tolower($NF)}' | sort -u)"
+    matched=""
+    while IFS= read -r g; do
+      [ -n "$g" ] || continue
+      if grep -qxF "$g" <<<"$expected"; then matched="$g"; break; fi
+    done <<<"$got"
+    if [ -z "$matched" ]; then
+      warn "  reject: split $(basename "$f") NOT signed by an expected $PKG cert (got: $(tr '\n' ' ' <<<"$got"))"; rm -rf "$xd"; return 1
+    fi
+    badging="$("$aapt" dump badging "$f" 2>/dev/null || true)"
+    pkg_got="$(grep -oE "^package: name='[^']*'" <<<"$badging" | sed -E "s/.*name='([^']*)'.*/\1/" | head -1)"
+    ver_got="$(grep -oE "versionName='[^']*'"      <<<"$badging" | sed -E "s/.*versionName='([^']*)'.*/\1/" | head -1)"
+    if [ "$pkg_got" = "$PKG" ] && [ "$ver_got" = "$VER" ]; then base_ok=1; fi
+  done < <(find "$xd" -name '*.apk' -type f)
+  rm -rf "$xd"
+
+  if [ "$base_ok" -ne 1 ]; then
+    warn "  reject: no split reported package=$PKG versionName=$VER (wrong app or version)"; return 1
+  fi
+  log "  verify OK: APKM $PKG $VER, $nsplits splits all signed by an expected cert"
+  return 0
+}
+
+# Dispatch to the right gate for the requested container ($CONTAINER, set by main).
+run_gate() {
+  case "$CONTAINER" in
+    apkm) verify_apkm "$1";;
+    *)    verify "$1";;
+  esac
+}
+
 main() {
   PKG="${1:?package}"; VER="${2:?version}"; ARCH="${3:?arch}"; OUT="${4:?out path}"
-  CACHE_ASSET="${PKG}-${VER}.apk"
+  # $5 = container: "apk" (single base APK, YouTube/Music) or "apkm" (split
+  # bundle, X/Twitter - morphe patches it directly). Sets the gate and the
+  # cache-asset extension so an .apk and an .apkm never collide in the cache.
+  CONTAINER="${5:-apk}"
+  case "$CONTAINER" in apk|apkm) ;; *) die "unknown container '$CONTAINER' (want apk|apkm)";; esac
+  CACHE_ASSET="${PKG}-${VER}.${CONTAINER}"
   GH_REPO="${GITHUB_REPOSITORY:-${VANTAGE_REPO:-}}"
   mkdir -p "$(dirname "$OUT")"
 
@@ -277,32 +369,38 @@ main() {
   fi
 
   # -------------------------------------------------------------------------
-  # 2. Ordered download sources, each behind the verify() gate.
+  # 2. Ordered download sources, each behind the container's gate. X uses its
+  #    own source list (only APKMirror serves the genuine APKM).
   # -------------------------------------------------------------------------
-  : "${DL_SOURCES:=apkmirror apkpure apkcombo aptoide}"
-  log "Cache miss - trying download sources: $DL_SOURCES"
+  local sources
+  if [ "$CONTAINER" = "apkm" ]; then
+    sources="${X_DL_SOURCES:-apkmirror}"
+  else
+    sources="${DL_SOURCES:-apkmirror apkpure apkcombo aptoide}"
+  fi
+  log "Cache miss - trying download sources: $sources"
   local scratch; scratch="$(mktemp -d)"; trap 'rm -rf "$scratch"' RETURN
   local accepted="" src fn cand
-  for src in $DL_SOURCES; do
+  for src in $sources; do
     fn="src_${src}"
     if ! declare -F "$fn" >/dev/null 2>&1; then
       warn "unknown download source '$src' (no $fn) - skipping"; continue
     fi
-    cand="$scratch/${src}.apk"; rm -f "$cand"
+    cand="$scratch/${src}.${CONTAINER}"; rm -f "$cand"
     log "== source: $src =="
     if ! "$fn" "$cand"; then
       warn "source '$src' did not produce a download - next source"; continue
     fi
-    if verify "$cand"; then
+    if run_gate "$cand"; then
       log "ACCEPTED from source '$src'"
       cp "$cand" "$OUT"; accepted="$src"; break
     else
-      warn "source '$src' produced an APK that FAILED verification - next source"
+      warn "source '$src' produced a file that FAILED verification - next source"
     fi
   done
 
   if [ -z "$accepted" ]; then
-    die "all download sources failed verification for $CACHE_ASSET. Seed the stock-cache manually (see the 'Stock-APK download' section in the README) with a genuine Google-signed $PKG $VER $ARCH APK."
+    die "all download sources failed verification for $CACHE_ASSET. Seed the stock-cache manually (see the 'Stock-APK download' section in the README) with a genuine vendor-signed $PKG $VER $ARCH $CONTAINER."
   fi
   log "Download OK from '$accepted': $OUT ($(du -h "$OUT" | cut -f1))"
 

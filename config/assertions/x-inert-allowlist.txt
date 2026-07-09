@@ -1,0 +1,3 @@
+# X patches allowed to log "not supported in this version" without failing the
+# build, one per line. Empty on X 12.2.0-release.0 (the whole enabled set is
+# compatible). Add a name here if a version bump makes an enabled patch inert.

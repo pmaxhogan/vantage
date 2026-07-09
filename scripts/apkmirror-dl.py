@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
-"""apkmirror-dl.py <package> <version> <arch> <out>
+"""apkmirror-dl.py <package> <version> <arch> <out> [format]
 
-Resolve + download a single base APK (variant type = APK, matching arch) from
-APKMirror. APKMirror puts its variant + download pages behind Cloudflare's
-TLS/JA3 fingerprint bot-block, so plain curl gets a 403; curl_cffi impersonating
-Chrome gets 200. This helper does the release -> variant -> download-page ->
-file chain and streams the APK to <out>.
+Resolve + download from APKMirror. APKMirror puts its variant + download pages
+behind Cloudflare's TLS/JA3 fingerprint bot-block, so plain curl gets a 403;
+curl_cffi impersonating Chrome gets 200. This helper does the release -> variant
+-> download-page -> file chain and streams the file to <out>.
 
-It deliberately doesn't verify the APK - download-apk.sh's 5-point gate (Google
-signature, single base APK, package/version) does that. Here we only pick the
-right variant (type APK, not a bundle; arch match) and fetch it.
+[format] (5th arg, default "apk") selects which release-page row to take:
+  apk  - a single base APK (variant type APK, not a bundle), matching arch.
+         Used by YouTube / YouTube Music.
+  apkm - the split BUNDLE (APKM). Used by X/Twitter, which ships no single APK;
+         morphe patches the APKM directly. The rest of the chain is identical.
+
+It deliberately doesn't verify the download - download-apk.sh's gate (vendor
+signature, package/version, and for an APKM every nested split) does that. Here
+we only pick the right row and fetch it.
 
 Exit 0 on a written file, non-zero otherwise (with a reason on stderr).
 """
@@ -26,6 +31,7 @@ BASE = "https://www.apkmirror.com"
 SLUGS = {
     "com.google.android.youtube": "google-inc/youtube/youtube",
     "com.google.android.apps.youtube.music": "google-inc/youtube-music/youtube-music",
+    "com.twitter.android": "x-corp/x/x",
 }
 # arch aliases: what row-text tokens count as a match for a requested arch.
 ARCH_ALIASES = {
@@ -41,9 +47,11 @@ def log(*a):
     print("  [apkmirror-py]", *a, file=sys.stderr)
 
 
-def pick_variant(html_text, want_arch):
-    """Return the /apk/.../download/ variant path for the type=APK row whose arch
-    matches want_arch, or None. Rows are the release page's download table rows."""
+def pick_variant(html_text, want_arch, fmt="apk"):
+    """Return the /apk/.../download/ variant path for the release-page row matching
+    want_arch, or None. fmt="apk" wants a single base-APK row (type APK, not a
+    bundle); fmt="apkm" wants the split BUNDLE row (X ships bundle-only). Rows are
+    the release page's download table rows."""
     aliases = ARCH_ALIASES.get(want_arch, (want_arch,))
     for row in re.findall(r'<div class="table-row[^"]*">.*?</div>\s*</div>', html_text, re.S):
         m = re.search(r'href="(/apk/[^"]*-android-apk-download/)"', row)
@@ -52,10 +60,13 @@ def pick_variant(html_text, want_arch):
         text = re.sub(r"<[^>]+>", " ", row)
         text = re.sub(r"\s+", " ", text)
         # A BUNDLE row says "BUNDLE"; a base-APK row shows "APK" and no "BUNDLE".
-        if re.search(r"\bBUNDLE\b", text):
-            continue
-        if not re.search(r"\bAPK\b", text):
-            continue
+        is_bundle = bool(re.search(r"\bBUNDLE\b", text))
+        if fmt == "apkm":
+            if not is_bundle:
+                continue
+        else:
+            if is_bundle or not re.search(r"\bAPK\b", text):
+                continue
         low = text.lower()
         # For arm64-v8a we must not accept an armeabi-v7a-only row, etc. Require an
         # exact arch token and (for arm64) reject if only armeabi is present.
@@ -68,9 +79,10 @@ def pick_variant(html_text, want_arch):
 
 def main():
     if len(sys.argv) < 5:
-        log("usage: apkmirror-dl.py <package> <version> <arch> <out>")
+        log("usage: apkmirror-dl.py <package> <version> <arch> <out> [apk|apkm]")
         return 2
     pkg, ver, arch, out = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+    fmt = sys.argv[5] if len(sys.argv) > 5 else "apk"
     slug = SLUGS.get(pkg)
     if not slug:
         log("no APKMirror slug mapping for", pkg)
@@ -85,9 +97,9 @@ def main():
         log("release page HTTP", r.status_code)
         return 1
 
-    vpath = pick_variant(r.text, arch)
+    vpath = pick_variant(r.text, arch, fmt)
     if not vpath:
-        log(f"no type=APK variant matching arch={arch} on the release page")
+        log(f"no {'BUNDLE' if fmt == 'apkm' else 'type=APK'} variant matching arch={arch} on the release page")
         return 1
     log("variant", vpath)
 

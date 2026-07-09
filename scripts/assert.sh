@@ -36,7 +36,7 @@ keystore_preflight() {
 
 # ================================ variant ==================================
 assert_variant() {
-  local NAME="" RESULT="" LOG="" APK="" PKG="" LABEL="" NONNEG="" INERT="" COUNT="" SETTINGS="" MINMB="40"
+  local NAME="" RESULT="" LOG="" APK="" PKG="" LABEL="" NONNEG="" INERT="" FORBIDDEN="" COUNT="" SETTINGS="" MINMB="40"
   while [ $# -gt 0 ]; do
     case "$1" in
       --variant) NAME="$2"; shift 2;;
@@ -47,13 +47,14 @@ assert_variant() {
       --label) LABEL="$2"; shift 2;;
       --nonneg) NONNEG="$2"; shift 2;;
       --inert) INERT="$2"; shift 2;;
+      --forbidden) FORBIDDEN="$2"; shift 2;;
       --expected-count) COUNT="$2"; shift 2;;
       --settings) SETTINGS="$2"; shift 2;;
       --min-size-mb) MINMB="$2"; shift 2;;
       *) die "unknown arg: $1";;
     esac
   done
-  for v in NAME RESULT LOG APK PKG LABEL NONNEG INERT; do
+  for v in NAME RESULT LOG APK PKG NONNEG INERT; do
     [ -n "${!v}" ] || die "assert variant: missing --${v,,}"
   done
   for f in "$RESULT" "$LOG" "$APK"; do [ -f "$f" ] || die "not found: $f"; done
@@ -76,6 +77,23 @@ assert_variant() {
     fi
   done
   [ "$fail" -eq 0 ] && log "[$NAME] all ${#need[@]} non-negotiable patches present OK"
+
+  # --- 2b. forbidden patches must NOT be in appliedPatches -----------------
+  # morphe can re-add a deselected patch as another patch's dependency, so an
+  # "enabled": false in the options file is not a guarantee. This fails the build
+  # if a forbidden patch actually applied.
+  if [ -n "$FORBIDDEN" ] && [ -f "$FORBIDDEN" ]; then
+    local -a forbid; read_list forbid "$FORBIDDEN"
+    local fb
+    for fb in "${forbid[@]:-}"; do
+      [ -z "$fb" ] && continue
+      if grep -Fxq "$fb" <<<"$applied"; then
+        warn "[$NAME] FORBIDDEN patch present in appliedPatches: '$fb' (excluded on purpose - a dependency pulled it back in)"; fail=1
+      else
+        log "[$NAME] forbidden patch absent OK: '$fb'"
+      fi
+    done
+  fi
 
   # --- 3. exact applied count (curated/exclusive sets only) ----------------
   if [ -n "$COUNT" ]; then
@@ -141,8 +159,15 @@ assert_variant() {
     label_got="$(grep -oE "^application-label:'[^']*'" <<<"$badging" | sed -E "s/.*:'([^']*)'.*/\1/")"
     [ "$pkg_got" = "$PKG" ] && log "[$NAME] package '$pkg_got' OK" \
       || { warn "[$NAME] package mismatch expected='$PKG' got='$pkg_got'"; fail=1; }
-    [ "$label_got" = "$LABEL" ] && log "[$NAME] label '$label_got' OK" \
-      || { warn "[$NAME] label mismatch expected='$LABEL' got='$label_got'"; fail=1; }
+    # Label is optional: pass --label to pin it, omit to only record it. The X
+    # build leaves it unpinned (its label is whatever piko's Change app icon sets)
+    # while still pinning the security-relevant package name above.
+    if [ -n "$LABEL" ]; then
+      [ "$label_got" = "$LABEL" ] && log "[$NAME] label '$label_got' OK" \
+        || { warn "[$NAME] label mismatch expected='$LABEL' got='$label_got'"; fail=1; }
+    else
+      log "[$NAME] label '$label_got' (not pinned)"
+    fi
   fi
 
   # --- 7. size threshold + zip integrity -----------------------------------

@@ -20,11 +20,12 @@ set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 load_build_env
 
-JAR="" PATCHES="" OPTIONS="" KEYSTORE="" APK="" OUT="" RESULT="" LOG="" TMP="" EXCLUSIVE=""
+JAR="" OPTIONS="" KEYSTORE="" APK="" OUT="" RESULT="" LOG="" TMP="" EXCLUSIVE=""
+PATCHES=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --jar) JAR="$2"; shift 2;;
-    --patches) PATCHES="$2"; shift 2;;
+    --patches) PATCHES+=("$2"); shift 2;;   # repeatable: X stacks piko + x-shim
     --options) OPTIONS="$2"; shift 2;;
     --keystore) KEYSTORE="$2"; shift 2;;
     --apk) APK="$2"; shift 2;;
@@ -36,10 +37,12 @@ while [ $# -gt 0 ]; do
     *) die "unknown arg: $1";;
   esac
 done
-for v in JAR PATCHES OPTIONS KEYSTORE APK OUT RESULT LOG TMP; do
+for v in JAR OPTIONS KEYSTORE APK OUT RESULT LOG TMP; do
   [ -n "${!v}" ] || die "patch.sh: missing --${v,,}"
-  case "$v" in JAR|PATCHES|OPTIONS|KEYSTORE|APK) [ -f "${!v}" ] || die "not found: ${!v}";; esac
+  case "$v" in JAR|OPTIONS|KEYSTORE|APK) [ -f "${!v}" ] || die "not found: ${!v}";; esac
 done
+[ "${#PATCHES[@]}" -gt 0 ] || die "patch.sh: missing --patches"
+for p in "${PATCHES[@]}"; do [ -f "$p" ] || die "not found: $p"; done
 
 mkdir -p "$(dirname "$OUT")" "$(dirname "$RESULT")" "$(dirname "$LOG")" "$TMP"
 
@@ -47,8 +50,14 @@ mkdir -p "$(dirname "$OUT")" "$(dirname "$RESULT")" "$(dirname "$LOG")" "$TMP"
 RUNTIME_OPTIONS="$TMP/options.$(basename "$OPTIONS")"
 sed "s#\"config/icon/#\"$VANTAGE_ROOT/config/icon/#g" "$OPTIONS" > "$RUNTIME_OPTIONS"
 
+# One --patches= per supplied bundle. morphe-cli merges them into a single patch
+# list (piko + x-shim for the X build; a lone bundle for the YouTube variants).
+PATCH_ARGS=()
+names=""
+for p in "${PATCHES[@]}"; do PATCH_ARGS+=(--patches="$p"); names="$names $(basename "$p")"; done
+
 log "Patching $(basename "$APK") -> $(basename "$OUT")"
-log "  patches=$(basename "$PATCHES") options=$(basename "$OPTIONS") ${EXCLUSIVE:+exclusive}"
+log "  patches=${names# } options=$(basename "$OPTIONS") ${EXCLUSIVE:+exclusive}"
 
 # Run. Tee full CLI output to the log (assert.sh greps it). set -o pipefail
 # makes the tee preserve morphe-cli's exit code.
@@ -58,7 +67,7 @@ set +e
 : "${VANTAGE_KEYSTORE_PASS:?VANTAGE_KEYSTORE_PASS must be set (keystore + entry password)}"
 KS_ALIAS="${VANTAGE_KEYSTORE_ALIAS:-vantage}"
 java -jar "$JAR" patch \
-  --patches="$PATCHES" \
+  "${PATCH_ARGS[@]}" \
   --options-file="$RUNTIME_OPTIONS" \
   $EXCLUSIVE \
   --keystore="$KEYSTORE" \

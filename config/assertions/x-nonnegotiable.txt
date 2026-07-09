@@ -1,0 +1,11 @@
+# Patches that must be applied for the Vantage X (Twitter) build, one per line.
+# Names must match the piko / x-shim patch names exactly so an upstream rename
+# trips this guard. The count isn't checked - the piko default set grows over time.
+#
+# The three "Abstract shim layer" patches are the x-shim compatibility layer that
+# makes X 11.88+ patchable at all; without them the build is meaningless. Remove
+# Ads is the core reason to run a patched X.
+Abstract shim layer
+Abstract shim layer for native library
+Abstract shim layer for method
+Remove Ads

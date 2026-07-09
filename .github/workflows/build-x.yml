@@ -1,0 +1,77 @@
+name: Build Vantage X
+
+# Separate from build.yml on purpose: the X (Twitter) build is the riskiest one
+# (single-source APKM download, piko + x-shim bundles, pairip left in place), so
+# it runs on its own and publishes its own PRERELEASE. A failure here never blocks
+# the YouTube nightly.
+
+on:
+  schedule:
+    # Daily, offset an hour from the YouTube build. build-x.sh skips early (exit 0)
+    # when neither piko nor x-shim changed, so most ticks are cheap no-ops.
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force a build even if piko/x-shim versions are unchanged"
+        type: boolean
+        default: false
+
+concurrency:
+  group: vantage-build-x
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # create the X prerelease + read/write the stock-cache
+
+jobs:
+  build-x:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60   # ~150MB APKM download + a 67-patch pass, with headroom
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VANTAGE_KEYSTORE_B64: ${{ secrets.VANTAGE_KEYSTORE_B64 }}
+      VANTAGE_KEYSTORE_PASS: ${{ secrets.VANTAGE_KEYSTORE_PASS }}
+      VANTAGE_KEYSTORE_ALIAS: ${{ secrets.VANTAGE_KEYSTORE_ALIAS }}
+      VANTAGE_KEYSTORE_SHA256: ${{ secrets.VANTAGE_KEYSTORE_SHA256 }}
+      VANTAGE_CERT_SHA256: ${{ secrets.VANTAGE_CERT_SHA256 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Show toolchain
+        run: |
+          java -version
+          ls "$ANDROID_HOME/build-tools" 2>/dev/null | tail -3 || true
+          jq --version
+
+      - name: Install curl_cffi (APKMirror APKM download)
+        run: |
+          python3 -m pip install --quiet --user curl_cffi \
+            || python3 -m pip install --quiet --break-system-packages curl_cffi \
+            || python3 -m pip install --quiet curl_cffi
+          python3 -c "import curl_cffi; print('curl_cffi', curl_cffi.__version__)"
+
+      - name: Build Vantage X (resolve, skip-if-unchanged, patch, assert, prerelease)
+        run: |
+          set -euo pipefail
+          FORCE=""
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE="--force"; fi
+          bash scripts/build-x.sh $FORCE --release
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vantage-x-build-logs
+          path: |
+            build/out/x-*.log
+            build/out/x-result.json
+          if-no-files-found: ignore
+          retention-days: 14

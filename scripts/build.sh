@@ -32,25 +32,10 @@ WORK="$VANTAGE_ROOT/build"; TOOLS="$WORK/tools"; STOCK="$WORK/stock"; OUT="$WORK
 mkdir -p "$WORK" "$TOOLS" "$STOCK" "$OUT" "$OUTDIR" "$TMPROOT"
 
 # ---- resolve signing keystore (not committed - repo is public) -------------
-# Source of truth is the secret VANTAGE_KEYSTORE_B64 (base64 of the .keystore),
-# decoded to a runtime file. Local dev may instead point VANTAGE_KEYSTORE_FILE
-# at a real keystore on disk. The password + alias come from secrets too
-# (VANTAGE_KEYSTORE_PASS required; VANTAGE_KEYSTORE_ALIAS defaults to "vantage").
-# base64 round-trips byte-for-byte, so the decoded file's SHA-256 still matches
-# the pinned VANTAGE_KEYSTORE_SHA256 guard.
+# From the VANTAGE_KEYSTORE_B64 secret (CI) or a local VANTAGE_KEYSTORE_FILE.
+# See resolve_signing_keystore in lib.sh.
 KEYSTORE="$WORK/vantage.keystore"
-if [ -n "${VANTAGE_KEYSTORE_B64:-}" ]; then
-  printf '%s' "$VANTAGE_KEYSTORE_B64" | base64 -d > "$KEYSTORE" \
-    || die "failed to base64-decode VANTAGE_KEYSTORE_B64"
-  log "decoded signing keystore from VANTAGE_KEYSTORE_B64"
-elif [ -n "${VANTAGE_KEYSTORE_FILE:-}" ] && [ -f "${VANTAGE_KEYSTORE_FILE}" ]; then
-  cp "$VANTAGE_KEYSTORE_FILE" "$KEYSTORE"
-  log "using local signing keystore from VANTAGE_KEYSTORE_FILE"
-else
-  die "no signing keystore: set VANTAGE_KEYSTORE_B64 (CI secret) or VANTAGE_KEYSTORE_FILE (local path)"
-fi
-: "${VANTAGE_KEYSTORE_PASS:?VANTAGE_KEYSTORE_PASS must be set (keystore + entry password)}"
-export VANTAGE_KEYSTORE_PASS VANTAGE_KEYSTORE_ALIAS="${VANTAGE_KEYSTORE_ALIAS:-vantage}"
+resolve_signing_keystore "$KEYSTORE"
 
 # ---- resolve versions + skip ---------------------------------------------
 RESOLVED="$WORK/resolved.env"

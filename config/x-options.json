@@ -1,0 +1,236 @@
+[
+    {
+        "meta": {
+            "created_at": "2026-06-27T16:03:22Z",
+            "source": "patches-3.7.0.mpp",
+            "sha256": "2e7ee1114dc860a2719cab0db5d26dd7c34b38df6becbc74cbe6355b43370641"
+        },
+        "patches": {
+            "Add ability to copy media link": {
+                "enabled": true
+            },
+            "Block redirecting to X Lite": {
+                "enabled": true
+            },
+            "Bring back twitter": {
+                "enabled": false
+            },
+            "Browse tweet object": {
+                "enabled": false
+            },
+            "Change app icon": {
+                "enabled": true
+            },
+            "Change version code": {
+                "enabled": true
+            },
+            "Clear tracking params": {
+                "enabled": true
+            },
+            "Control video auto scroll": {
+                "enabled": true
+            },
+            "Custom download folder": {
+                "enabled": true
+            },
+            "Custom emoji font": {
+                "enabled": true
+            },
+            "Custom font": {
+                "enabled": true
+            },
+            "Custom sharing domain": {
+                "enabled": true
+            },
+            "Customise post font size": {
+                "enabled": true
+            },
+            "Customize default reply sorting": {
+                "enabled": true
+            },
+            "Customize explore tabs": {
+                "enabled": true
+            },
+            "Customize Inline action Bar items": {
+                "enabled": true
+            },
+            "Customize Navigation Bar items": {
+                "enabled": true
+            },
+            "Customize notification tabs": {
+                "enabled": true
+            },
+            "Customize profile tabs": {
+                "enabled": true
+            },
+            "Customize search suggestions": {
+                "enabled": true
+            },
+            "Customize search tab items": {
+                "enabled": true
+            },
+            "Customize side bar items": {
+                "enabled": true
+            },
+            "Customize timeline top bar": {
+                "enabled": true
+            },
+            "Delete from database": {
+                "enabled": true
+            },
+            "Disable auto timeline scroll on launch": {
+                "enabled": true
+            },
+            "Disable chirp font": {
+                "enabled": true
+            },
+            "Disunify xchat system": {
+                "enabled": false
+            },
+            "Download patch": {
+                "enabled": true
+            },
+            "Dynamic color": {
+                "enabled": false
+            },
+            "Enable debug menu for posts": {
+                "enabled": true
+            },
+            "Enable force HD videos": {
+                "enabled": true
+            },
+            "Enable PiP mode automatically": {
+                "enabled": true
+            },
+            "Enable Undo Posts": {
+                "enabled": true
+            },
+            "Export all activities": {
+                "enabled": false
+            },
+            "Force enable translate": {
+                "enabled": true
+            },
+            "Handle custom twitter links": {
+                "enabled": true
+            },
+            "Hide badges from navigation bar icons": {
+                "enabled": true
+            },
+            "Hide Banner": {
+                "enabled": true
+            },
+            "Hide bookmark icon in timeline": {
+                "enabled": true
+            },
+            "Hide community badges": {
+                "enabled": true
+            },
+            "Hide Community Notes": {
+                "enabled": true
+            },
+            "Hide FAB": {
+                "enabled": true
+            },
+            "Hide FAB Menu Buttons": {
+                "enabled": true
+            },
+            "Hide followed by context": {
+                "enabled": true
+            },
+            "Hide hidden replies": {
+                "enabled": true
+            },
+            "Hide immersive player": {
+                "enabled": true
+            },
+            "Hide Live Threads": {
+                "enabled": true
+            },
+            "Hide nudge button": {
+                "enabled": true
+            },
+            "Hide post metrics": {
+                "enabled": true
+            },
+            "Hide promote button": {
+                "enabled": true
+            },
+            "Hide recommendation items": {
+                "enabled": true
+            },
+            "Hide Recommended Users": {
+                "enabled": true
+            },
+            "Hook feature flag": {
+                "enabled": true
+            },
+            "Import/Export login token": {
+                "enabled": true
+            },
+            "Legacy share links": {
+                "enabled": true
+            },
+            "Log server response": {
+                "enabled": true
+            },
+            "Native downloader": {
+                "enabled": true
+            },
+            "Native reader mode": {
+                "enabled": true
+            },
+            "Native translator": {
+                "enabled": true
+            },
+            "No shortened URL": {
+                "enabled": true
+            },
+            "Pause search suggestions": {
+                "enabled": true
+            },
+            "Remove Ads": {
+                "enabled": true
+            },
+            "Remove premium upsell": {
+                "enabled": true
+            },
+            "Remove search suggestions": {
+                "enabled": true
+            },
+            "Remove view count": {
+                "enabled": true
+            },
+            "Round off numbers": {
+                "enabled": true
+            },
+            "Selectable Text": {
+                "enabled": true
+            },
+            "Share Tweet as Image": {
+                "enabled": true
+            },
+            "Show changelogs": {
+                "enabled": true
+            },
+            "Show poll results": {
+                "enabled": true
+            },
+            "Show post source label": {
+                "enabled": true
+            },
+            "Show sensitive media": {
+                "enabled": true
+            },
+            "Abstract shim layer": {
+                "enabled": true
+            },
+            "Abstract shim layer for native library": {
+                "enabled": true
+            },
+            "Abstract shim layer for method": {
+                "enabled": true
+            }
+        }
+    }
+]

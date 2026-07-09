@@ -1,0 +1,7 @@
+# Patches that must NOT end up in appliedPatches for the Vantage X build, one per
+# line. morphe can auto-pull a deselected patch back in as a dependency, so a plain
+# "enabled": false in the options file isn't a guarantee - this guard fails the
+# build if the patch actually applied.
+#
+# Browse tweet object is excluded by request (it only adds a share-menu debug entry).
+Browse tweet object

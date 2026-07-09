@@ -31,7 +31,8 @@ thumbnails and copy-URL buttons. SponsorBlock, Return YouTube Dislike, and ad
 hiding are on as RVX defaults.
 
 Vantage M is left out of the config on purpose. It's the extra Morphe variant;
-install it by hand from the release assets if you want it.
+install it by hand from the release assets if you want it. Vantage X (patched
+Twitter/X) is also left out and ships as its own prerelease - see below.
 
 ## The four variants
 
@@ -59,6 +60,39 @@ keeps the fork current with anddea. Patching runs through
 builds from the official [morphe-patches](https://github.com/MorpheApp/morphe-patches)
 set. Target versions auto-resolve to the newest in the top compatibility tier,
 currently YouTube 20.51.39 and YouTube Music 9.15.51.
+
+## Vantage X (Twitter/X, experimental)
+
+Vantage X is a patched Twitter/X build from the [piko](https://github.com/crimera/piko)
+patch set (the morphe patches for X). It is a separate, EXPERIMENTAL track from the
+YouTube variants above, for three reasons, so it gets its own workflow
+(`build-x.yml`) and its own GitHub **prerelease** rather than riding the YouTube
+release:
+
+- X ships no single universal APK. It is distributed as a split APKM bundle, which
+  morphe patches directly (merging the splits, then patching). The download gate
+  verifies every split's signing cert before patching.
+- Patching X 11.88+ needs a second bundle, the [x-shim](https://gitlab.com/inotia00/x-shim)
+  compatibility layer, stacked on top of piko. x-shim does not remove pairip (X's
+  Play-integrity anti-tamper), so a re-signed sideloaded build can misbehave.
+- Because pairip stays in and CI cannot log in to X on a phone, a green build is
+  **not** proof the app launches or works. Vantage X is therefore left out of the
+  one-tap Obtainium config (like Vantage M) and shipped as a prerelease you install
+  by hand from the assets, until it is confirmed on a device.
+
+| Variant | App | Package | Label | Patch source |
+|---|---|---|---|---|
+| Vantage X | Twitter/X | `com.twitter.android` | X | piko release + x-shim (default set, `Browse tweet object` off) |
+
+The package stays `com.twitter.android`, so Vantage X replaces a stock X install
+rather than sitting beside it (piko has no package-rename patch for X). Its config
+is `config/x-options.json`, which enables piko's recommended default set plus the
+three x-shim layers. Five piko patches are left off: `Browse tweet object` (a debug
+share-menu entry, excluded by request) and four that are off upstream for good
+reason (`Bring back twitter`, `Disunify xchat system`, `Dynamic color`,
+`Export all activities`). Every X patch is listed explicitly in the options file,
+so flipping any is a one-line change. The target version auto-resolves to the newest
+non-`ripped` compatible build, currently X 12.2.0-release.0.
 
 ## Enabled patches (Vantage / Vantage Alt)
 
@@ -176,6 +210,17 @@ Since the repo is public, GitHub disables the scheduled workflow after 60 days
 with no commits (cron runs and releases don't reset that timer). See the
 limitations below.
 
+Vantage X builds separately. `.github/workflows/build-x.yml` runs
+`scripts/build-x.sh` on its own daily schedule, so a flaky X build (single-source
+APKM download, piko/x-shim churn, pairip) never blocks the YouTube nightly. It
+resolves piko's latest release and the pinned x-shim bundle, skips early when
+neither changed (state is the newest `x-v...` prerelease's `built-versions-x.json`),
+downloads the split APKM through the same signature gate, patches with both bundles
+stacked (`patch.sh` takes repeated `--patches`), asserts, and publishes a
+**prerelease** tagged `x-v<date>-piko<v>-shim<v>`. The shared scripts (`lib.sh`,
+`download-apk.sh`, `patch.sh`, `assert.sh`) are reused; only the orchestrator and
+options differ.
+
 ### CI guards
 
 morphe-cli only warns on a renamed or removed patch, and it counts a
@@ -229,36 +274,45 @@ back to `stock-cache`, so the cache maintains itself. `build.yml` installs
 `curl_cffi` before building. `apkcombo` and `aptoide` remain as extra fallbacks
 (see `config/build.env`).
 
-Assets are named `<package>-<version>.apk`. You only need to seed the cache by hand
-to bootstrap a package no source carries yet:
+Assets are named `<package>-<version>.<container>`, where the container is `apk`
+for YouTube/Music and `apkm` for X (a split bundle). X is fetched only from
+APKMirror, and its gate extracts every nested split and checks each one's signing
+cert, so a mirror that re-signs the bundle (APKPure serves X under its own key) is
+rejected. You only need to seed the cache by hand to bootstrap a package no source
+carries yet:
 
 ```bash
 gh release create stock-cache -R <owner>/vantage --prerelease \
-  --title "Stock APK cache" --notes "keyed by <package>-<version>.apk"
+  --title "Stock APK cache" --notes "keyed by <package>-<version>.<apk|apkm>"
 gh release upload stock-cache -R <owner>/vantage \
   com.google.android.youtube-<ver>.apk \
-  com.google.android.apps.youtube.music-<ver>.apk
+  com.google.android.apps.youtube.music-<ver>.apk \
+  com.twitter.android-<ver>.apkm
 ```
 
 ## Layout
 
 ```
 .github/workflows/build.yml   cron + dispatch(force); Java 21; runs build.sh; one Release
+.github/workflows/build-x.yml cron + dispatch(force); runs build-x.sh; X prerelease
 scripts/
-  lib.sh                      shared helpers (logging, SDK-tool finder, sha256, list reader)
+  lib.sh                      shared helpers (logging, keystore, SDK-tool finder, sha256, versions)
   resolve-versions.sh         upstream versions + skip decision (state = latest Release)
-  download-apk.sh             stock-cache-first, multi-source + Google-sig verify gate
-  apkmirror-dl.py             APKMirror resolver (curl_cffi; picks the APK variant)
+  download-apk.sh             stock-cache-first, multi-source + signature verify gate (apk & apkm)
+  apkmirror-dl.py             APKMirror resolver (curl_cffi; picks the APK or BUNDLE variant)
   apkpure-dl.py               APKPure resolver (curl_cffi; version-pinned base APK)
-  patch.sh                    one morphe-cli patch pass (absolutizes icon folder paths)
-  assert.sh                   keystore pre-flight + post-build guards
-  build.sh                    orchestrator (also runnable locally)
+  patch.sh                    one morphe-cli patch pass; repeatable --patches (X stacks two bundles)
+  assert.sh                   keystore pre-flight + post-build guards (nonneg/forbidden/inert)
+  build.sh                    YouTube-family orchestrator (also runnable locally)
+  build-x.sh                  X (Twitter) orchestrator, isolated; its own prerelease
 config/
   youtube-options.json        anddea YouTube, 23 enabled
   music-options.json          anddea YouTube Music, default set + branding
   morphe-youtube-options.json Morphe YouTube, default set + Custom branding + package
-  build.env                   pinned morphe-cli, channel selectors, packages, version pins
-  assertions/*.txt            non-negotiable names, inert allowlists, expected count
+  x-options.json              piko X, recommended default set + x-shim; Browse tweet object off
+  build.env                   pinned morphe-cli, channel selectors, packages, version pins, x-shim pin
+  expected-signatures.txt     genuine vendor signing certs the stock download gate accepts
+  assertions/*.txt            non-negotiable names, forbidden names, inert allowlists, expected count
   icon/                       custom icon sets per variant
   settings/                   golden RVX settings (optional reset files)
 obtainium-config.json         one-tap Obtainium onboarding (MicroG-RE + 3 Vantage apps)
@@ -292,3 +346,9 @@ bash scripts/build.sh --force                 # build + stage in build/release
   re-enable fixes it.
 - Vantage M's Morphe monochrome and notification icon assets are validated through
   morphe-cli's resource compiler, not a live themed-icon render.
+- Vantage X keeps pairip (x-shim does not strip it) and cannot be exercised on a
+  logged-in device in CI, so a green build only proves it patched and signed, not
+  that it launches or works. It stays a hand-installed prerelease until confirmed on
+  a phone. It is also effectively single-source (APKMirror is the only mirror that
+  serves the genuine APKM), and its pinned signing cert means an X signing-key
+  rotation would fail the gate until `config/expected-signatures.txt` is updated.

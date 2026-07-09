@@ -222,6 +222,9 @@
             "Show sensitive media": {
                 "enabled": true
             },
+            "Hide verified users": {
+                "enabled": true
+            },
             "Abstract shim layer": {
                 "enabled": true
             },

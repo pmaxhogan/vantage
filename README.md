@@ -82,7 +82,20 @@ release:
 
 | Variant | App | Package | Label | Patch source |
 |---|---|---|---|---|
-| Vantage X | Twitter/X | `com.twitter.android` | X | piko release + x-shim (default set, `Browse tweet object` off) |
+| Vantage X | Twitter/X | `com.twitter.android` | X | piko fork + x-shim (default set, `Browse tweet object` off, `Hide verified users` on) |
+
+Its headline addition is **Hide verified users**: it hides every tweet and reply
+whose author has a verified check - the blue X Premium badge (including a badge the
+user has hidden in-UI, since the underlying `is_blue_verified` flag stays set), plus
+gold/grey org and legacy verified. Upstream piko has no such patch (it is an open,
+unimplemented request there), so Vantage X builds from a small
+[fork of piko](https://github.com/pmaxhogan/piko) that adds it. The patch filters the
+raw JSON server response at the same hook piko's own "Log server response" uses,
+before the app parses it, so it is independent of the app's per-version obfuscation
+and covers the home timeline, conversations, and search alike. It fails safe: if a
+response is not the shape it expects, it is passed through untouched. The JSON filter
+logic is unit-tested, but note the on-device behavior of the whole Vantage X build is
+still unconfirmed (see the pairip caveat above and in the limitations).
 
 The package stays `com.twitter.android`, so Vantage X replaces a stock X install
 rather than sitting beside it (piko has no package-rename patch for X). Its config

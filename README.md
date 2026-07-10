@@ -76,9 +76,11 @@ release:
   compatibility layer, stacked on top of piko. x-shim does not remove pairip (X's
   Play-integrity anti-tamper), so a re-signed sideloaded build can misbehave.
 - Because pairip stays in and CI cannot log in to X on a phone, a green build is
-  **not** proof the app launches or works. Vantage X is therefore left out of the
-  one-tap Obtainium config (like Vantage M) and shipped as a prerelease you install
-  by hand from the assets, until it is confirmed on a device.
+  **not** proof the app launches or works - that is confirmed by hand. Vantage X was
+  installed and exercised on a logged-in Pixel 6 (Android 16): it launches, the
+  timeline loads, and the verified-user filter works as intended. It is still shipped
+  outside the one-tap Obtainium config (like Vantage M) as a prerelease you install by
+  hand from the assets, since each new X or piko version needs the same manual check.
 
 | Variant | App | Package | Label | Patch source |
 |---|---|---|---|---|
@@ -87,15 +89,32 @@ release:
 Its headline addition is **Hide verified users**: it hides every tweet and reply
 whose author has a verified check - the blue X Premium badge (including a badge the
 user has hidden in-UI, since the underlying `is_blue_verified` flag stays set), plus
-gold/grey org and legacy verified. Upstream piko has no such patch (it is an open,
-unimplemented request there), so Vantage X builds from a small
+gold/grey org and legacy verified. It also hides tweets that **reply to, retweet, or
+quote-tweet** a verified account (so a reply to a blue-check is hidden even when the
+replier is not), and it catches pinned tweets and "show more replies" pagination, not
+just the main feed. Upstream piko has no such patch (it is an open, unimplemented
+request there), so Vantage X builds from a small
 [fork of piko](https://github.com/pmaxhogan/piko) that adds it. The patch filters the
 raw JSON server response at the same hook piko's own "Log server response" uses,
 before the app parses it, so it is independent of the app's per-version obfuscation
-and covers the home timeline, conversations, and search alike. It fails safe: if a
-response is not the shape it expects, it is passed through untouched. The JSON filter
-logic is unit-tested, but note the on-device behavior of the whole Vantage X build is
-still unconfirmed (see the pairip caveat above and in the limitations).
+and covers the home timeline, profiles, conversations, and search alike. It fails
+safe: if a response is not the shape it expects, it is passed through untouched. (The
+reply-to-verified match needs the verified account present in the same response, so it
+is reliable inside a tweet's reply thread and best-effort in the home feed.)
+
+The filter was verified on-device against real X 12.2.0 responses (a captured sample
+of the For You feed, a verified profile, and explore): it removed every
+verified/retweet/quote/reply-to-verified timeline entry and kept every other one with
+no false removals, and the running app visibly hides verified accounts. An earlier
+build silently did nothing because current X had renamed its GraphQL timeline fields
+(`tweet_results`/`user_results`/`itemContent` became `tweetResult`/`user_result`/
+`content`); the on-device capture caught it, so the filter now matches the live schema
+(and still accepts the old names) rather than an assumed one.
+
+Vantage X also **defaults the home tab to Following** (the For You tab is removed via
+piko's "Customize timeline top bar" with the `customisation_timeline_tabs` default set
+to `hide_forYou`). It stays a setting, so For You can be restored to "Show both" in
+piko settings.
 
 The package stays `com.twitter.android`, so Vantage X replaces a stock X install
 rather than sitting beside it (piko has no package-rename patch for X). Its config

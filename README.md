@@ -32,7 +32,7 @@ hiding are on as RVX defaults.
 
 Vantage M is left out of the config on purpose. It's the extra Morphe variant;
 install it by hand from the release assets if you want it. Vantage X (patched
-Twitter/X) is also left out and ships as its own prerelease - see below.
+Twitter/X) is also left out and ships as its own release - see below.
 
 ## The four variants
 
@@ -79,8 +79,9 @@ release:
   **not** proof the app launches or works - that is confirmed by hand. Vantage X was
   installed and exercised on a logged-in Pixel 6 (Android 16): it launches, the
   timeline loads, and the verified-user filter works as intended. It is still shipped
-  outside the one-tap Obtainium config (like Vantage M) as a prerelease you install by
-  hand from the assets, since each new X or piko version needs the same manual check.
+  outside the one-tap Obtainium config (like Vantage M), installed by hand from the
+  assets. Each build publishes as a prerelease pending that on-device check; once
+  confirmed it is promoted to a full release, as the current build has been.
 
 | Variant | App | Package | Label | Patch source |
 |---|---|---|---|---|
@@ -380,7 +381,8 @@ bash scripts/build.sh --force                 # build + stage in build/release
   morphe-cli's resource compiler, not a live themed-icon render.
 - Vantage X keeps pairip (x-shim does not strip it) and cannot be exercised on a
   logged-in device in CI, so a green build only proves it patched and signed, not
-  that it launches or works. It stays a hand-installed prerelease until confirmed on
-  a phone. It is also effectively single-source (APKMirror is the only mirror that
+  that it launches or works. Each build is published as a prerelease and hand-installed
+  for a device check, then promoted to a full release once confirmed. It is also
+  effectively single-source (APKMirror is the only mirror that
   serves the genuine APKM), and its pinned signing cert means an X signing-key
   rotation would fail the gate until `config/expected-signatures.txt` is updated.

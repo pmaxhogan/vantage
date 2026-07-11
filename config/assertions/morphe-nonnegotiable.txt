@@ -1,8 +1,11 @@
 # Patches that must be applied for the Vantage M (Morphe) build, one per line.
 # This variant uses the Morphe default set, without comment hiding or Return
 # YouTube Username. Count isn't checked since the default set grows.
+#
+# Note: the standalone "Video ads" patch was merged into "Hide ads" in
+# morphe-patches 1.34.0 (it hides video ads by default). "Hide ads" below is the
+# ad-blocking guard now, matching the youtube/alt/music non-negotiable lists.
 Hide ads
-Video ads
 SponsorBlock
 Return YouTube Dislike
 Alternative thumbnails

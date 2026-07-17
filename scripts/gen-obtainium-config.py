@@ -80,6 +80,11 @@ apps = [
         vantage_addl(r"vantage-youtube-.*-alt\.apk")),
     app("app.vantage.youtube.music", "Vantage Music", "pmaxhogan", VANTAGE_URL,
         vantage_addl(r"vantage-music-.*\.apk")),
+    # Vantage X ships on its own "x-v..." release cadence in the same repo, so the
+    # newest release often has no vantage-x APK; fallbackToOlderReleases (on in
+    # vantage_addl) walks back to the last X one.
+    app("com.twitter.android", "Vantage X", "pmaxhogan", VANTAGE_URL,
+        vantage_addl(r"vantage-x-.*\.apk")),
     app("app.revanced.android.gms", "MicroG-RE", "MorpheApp", MICROG_URL,
         microg_addl),
 ]

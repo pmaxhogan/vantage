@@ -3,27 +3,29 @@
 [![Build](https://github.com/pmaxhogan/vantage/actions/workflows/build.yml/badge.svg)](https://github.com/pmaxhogan/vantage/actions/workflows/build.yml)
 [![Latest release](https://img.shields.io/github/v/release/pmaxhogan/vantage?label=release)](https://github.com/pmaxhogan/vantage/releases/latest)
 
-Vantage builds patched YouTube and YouTube Music APKs, signs them with a stable
-key, and publishes them as GitHub Releases. [Obtainium](https://github.com/ImranR98/Obtainium)
-installs them and keeps them updated. Every variant needs
+Vantage builds patched YouTube, YouTube Music, and Twitter/X APKs, signs them with
+a stable key, and publishes them as GitHub Releases. [Obtainium](https://github.com/ImranR98/Obtainium)
+installs them and keeps them updated. The YouTube variants need
 [MicroG-RE](https://github.com/MorpheApp/MicroG-RE) on the phone, an unrooted
 replacement for Google Play Services, and the bundled config installs it for you.
 
 ## Install
 
-Each release ships an `obtainium-config.json` that sets up four apps in one
-import: MicroG-RE plus the three Vantage apps (Vantage, Vantage Alt, Vantage
-Music), each already configured with the right APK filter and update settings.
+Each release ships an `obtainium-config.json` that sets up five apps in one
+import: MicroG-RE plus the four Vantage apps (Vantage, Vantage Alt, Vantage
+Music, Vantage X), each already configured with the right APK filter and update
+settings.
 
 1. Install [Obtainium](https://github.com/ImranR98/Obtainium/releases).
 2. Download `obtainium-config.json` from the
    [latest release](https://github.com/pmaxhogan/vantage/releases/latest).
 3. In Obtainium, open the menu, choose Import/Export, then Import from file, and
-   pick it. All four apps appear.
-4. Install MicroG-RE first, since the Vantage apps need it at runtime. Then
-   install whichever Vantage apps you want.
+   pick it. All five apps appear.
+4. Install MicroG-RE first, since the YouTube-family Vantage apps need it at
+   runtime. Then install whichever Vantage apps you want. Vantage X needs no
+   MicroG-RE, but it does replace a stock X install (see below).
 
-Obtainium auto-updates all four as new releases land. The Vantage apps track the
+Obtainium auto-updates all five as new releases land. The Vantage apps track the
 release date and MicroG-RE tracks its version. The settings you'd otherwise have
 to toggle by hand are baked into the patches, so a fresh install already hides
 Shorts, comments, and community posts, opens on Subscriptions, and has DeArrow
@@ -31,10 +33,14 @@ thumbnails and copy-URL buttons. SponsorBlock, Return YouTube Dislike, and ad
 hiding are on as RVX defaults.
 
 Vantage M is left out of the config on purpose. It's the extra Morphe variant;
-install it by hand from the release assets if you want it. Vantage X (patched
-Twitter/X) is also left out and ships as its own prerelease - see below.
+install it by hand from the release assets if you want it.
 
-## The four variants
+Vantage X is in the config, but it builds on its own cadence and publishes its own
+`x-v...` release rather than riding the YouTube one - so the newest release in the
+repo often carries no X APK. Obtainium's fallback-to-older-releases handles that
+and finds the last X build; see [Vantage X](#vantage-x-twitterx) below.
+
+## The four YouTube-family variants
 
 | Variant | App | Package | Label | Patch source |
 |---|---|---|---|---|
@@ -61,24 +67,24 @@ builds from the official [morphe-patches](https://github.com/MorpheApp/morphe-pa
 set. Target versions auto-resolve to the newest in the top compatibility tier,
 currently YouTube 20.51.39 and YouTube Music 9.15.51.
 
-## Vantage X (Twitter/X, experimental)
+## Vantage X (Twitter/X)
 
 Vantage X is a patched Twitter/X build from the [piko](https://github.com/crimera/piko)
-patch set (the morphe patches for X). It is a separate, EXPERIMENTAL track from the
-YouTube variants above, for three reasons, so it gets its own workflow
-(`build-x.yml`) and its own GitHub **prerelease** rather than riding the YouTube
-release:
+patch set (the morphe patches for X). It's a first-class variant, in the one-tap
+Obtainium config alongside the YouTube apps, but it builds on a separate track from
+them - its own workflow (`build-x.yml`) and its own GitHub release tagged `x-v...`
+rather than riding the YouTube release - for two reasons:
 
 - X ships no single universal APK. It is distributed as a split APKM bundle, which
   morphe patches directly (merging the splits, then patching). The download gate
   verifies every split's signing cert before patching.
 - Patching X 11.88+ needs a second bundle, the [x-shim](https://gitlab.com/inotia00/x-shim)
-  compatibility layer, stacked on top of piko. x-shim does not remove pairip (X's
-  Play-integrity anti-tamper), so a re-signed sideloaded build can misbehave.
-- Because pairip stays in and CI cannot log in to X on a phone, a green build is
-  **not** proof the app launches or works. Vantage X is therefore left out of the
-  one-tap Obtainium config (like Vantage M) and shipped as a prerelease you install
-  by hand from the assets, until it is confirmed on a device.
+  compatibility layer, stacked on top of piko. Its upstream churn is unrelated to
+  the anddea/Morphe cadence the YouTube builds track.
+
+X releases are published with `--latest=false`, so the repo's "latest release" slot
+stays on a YouTube build - that's the one carrying `obtainium-config.json`, which
+the install link above points at.
 
 | Variant | App | Package | Label | Patch source |
 |---|---|---|---|---|
@@ -94,13 +100,13 @@ raw JSON server response at the same hook piko's own "Log server response" uses,
 before the app parses it, so it is independent of the app's per-version obfuscation
 and covers the home timeline, conversations, and search alike. It fails safe: if a
 response is not the shape it expects, it is passed through untouched. The JSON filter
-logic is unit-tested, but note the on-device behavior of the whole Vantage X build is
-still unconfirmed (see the pairip caveat above and in the limitations).
+logic is unit-tested.
 
 The package stays `com.twitter.android`, so Vantage X replaces a stock X install
-rather than sitting beside it (piko has no package-rename patch for X). Its config
-is `config/x-options.json`, which enables piko's recommended default set plus the
-three x-shim layers. Five piko patches are left off: `Browse tweet object` (a debug
+rather than sitting beside it (piko has no package-rename patch for X). x-shim does
+not strip pairip, X's Play-integrity anti-tamper, which stays in the patched build.
+Its config is `config/x-options.json`, which enables piko's recommended default set
+plus the three x-shim layers. Five piko patches are left off: `Browse tweet object` (a debug
 share-menu entry, excluded by request) and four that are off upstream for good
 reason (`Bring back twitter`, `Disunify xchat system`, `Dynamic color`,
 `Export all activities`). Every X patch is listed explicitly in the options file,
@@ -225,12 +231,14 @@ limitations below.
 
 Vantage X builds separately. `.github/workflows/build-x.yml` runs
 `scripts/build-x.sh` on its own daily schedule, so a flaky X build (single-source
-APKM download, piko/x-shim churn, pairip) never blocks the YouTube nightly. It
+APKM download, piko/x-shim churn) never blocks the YouTube nightly. It
 resolves piko's latest release and the pinned x-shim bundle, skips early when
-neither changed (state is the newest `x-v...` prerelease's `built-versions-x.json`),
+neither changed (state is the newest `x-v...` release's `built-versions-x.json`),
 downloads the split APKM through the same signature gate, patches with both bundles
-stacked (`patch.sh` takes repeated `--patches`), asserts, and publishes a
-**prerelease** tagged `x-v<date>-piko<v>-shim<v>`. The shared scripts (`lib.sh`,
+stacked (`patch.sh` takes repeated `--patches`), asserts, and publishes a release
+tagged `x-v<date>-piko<v>-shim<v>` (with `--latest=false`, so the "latest release"
+slot stays on a YouTube build). Conversely, the YouTube skip logic ignores `x-v*`
+tags when it looks for the last build's manifest. The shared scripts (`lib.sh`,
 `download-apk.sh`, `patch.sh`, `assert.sh`) are reused; only the orchestrator and
 options differ.
 
@@ -307,7 +315,7 @@ gh release upload stock-cache -R <owner>/vantage \
 
 ```
 .github/workflows/build.yml   cron + dispatch(force); Java 21; runs build.sh; one Release
-.github/workflows/build-x.yml cron + dispatch(force); runs build-x.sh; X prerelease
+.github/workflows/build-x.yml cron + dispatch(force); runs build-x.sh; X release (x-v*)
 scripts/
   lib.sh                      shared helpers (logging, keystore, SDK-tool finder, sha256, versions)
   resolve-versions.sh         upstream versions + skip decision (state = latest Release)
@@ -317,7 +325,8 @@ scripts/
   patch.sh                    one morphe-cli patch pass; repeatable --patches (X stacks two bundles)
   assert.sh                   keystore pre-flight + post-build guards (nonneg/forbidden/inert)
   build.sh                    YouTube-family orchestrator (also runnable locally)
-  build-x.sh                  X (Twitter) orchestrator, isolated; its own prerelease
+  build-x.sh                  X (Twitter) orchestrator, isolated; its own x-v* release
+  gen-obtainium-config.py     regenerates obtainium-config.json (edit here, not the JSON)
 config/
   youtube-options.json        anddea YouTube, 23 enabled
   music-options.json          anddea YouTube Music, default set + branding
@@ -328,7 +337,7 @@ config/
   assertions/*.txt            non-negotiable names, forbidden names, inert allowlists, expected count
   icon/                       custom icon sets per variant
   settings/                   golden RVX settings (optional reset files)
-obtainium-config.json         one-tap Obtainium onboarding (MicroG-RE + 3 Vantage apps)
+obtainium-config.json         one-tap Obtainium onboarding (MicroG-RE + 4 Vantage apps)
 keystore/                     README only; the key lives in the VANTAGE_KEYSTORE_B64 secret
 ```
 
@@ -359,9 +368,8 @@ bash scripts/build.sh --force                 # build + stage in build/release
   re-enable fixes it.
 - Vantage M's Morphe monochrome and notification icon assets are validated through
   morphe-cli's resource compiler, not a live themed-icon render.
-- Vantage X keeps pairip (x-shim does not strip it) and cannot be exercised on a
-  logged-in device in CI, so a green build only proves it patched and signed, not
-  that it launches or works. It stays a hand-installed prerelease until confirmed on
-  a phone. It is also effectively single-source (APKMirror is the only mirror that
-  serves the genuine APKM), and its pinned signing cert means an X signing-key
-  rotation would fail the gate until `config/expected-signatures.txt` is updated.
+- Vantage X is effectively single-source: APKMirror is the only mirror that serves
+  the genuine APKM (APKPure re-signs it), so an APKMirror outage stops X builds even
+  though the YouTube variants have a fallback. Its pinned signing cert also means an
+  X signing-key rotation fails the gate until `config/expected-signatures.txt` is
+  updated.

@@ -1,23 +1,25 @@
 #!/usr/bin/env bash
 #
 # build-x.sh - Vantage X (Twitter) build orchestrator, deliberately SEPARATE from
-# build.sh so a flaky X build can never take the proven YouTube nightly down with
-# it. X is the riskiest variant in the repo: a single-source APKM download, two
-# floating/pinned patch bundles (piko + x-shim), and x-shim leaves pairip in
-# place - so a CI-green APK can still be dead on arrival. It therefore ships as its
-# OWN GitHub PRERELEASE, kept out of the one-tap Obtainium config, until someone
-# confirms it launches and logs in on a real device.
+# build.sh so a flaky X build can never take the YouTube nightly down with it: X
+# has a single-source APKM download and two floating/pinned patch bundles (piko +
+# x-shim) that churn on their own schedule. It publishes its OWN GitHub release,
+# tagged "x-v...", on its own cadence.
 #
 #   resolve piko(float)+x-shim(pinned) -> (skip?) -> download cli+bundles ->
 #   resolve X version -> keystore preflight -> download APKM -> patch(piko+shim) ->
-#   assert -> stage -> prerelease.
+#   assert -> stage -> release.
 #
-# State is the latest X prerelease's built-versions-x.json, never a committed file.
+# State is the latest X release's built-versions-x.json, never a committed file.
+#
+# The X release is published with --latest=false on purpose: the repo's "latest
+# release" slot must stay on a YouTube build, since that is the one carrying
+# obtainium-config.json (the README's install link points at /releases/latest).
 #
 # Usage: build-x.sh [--force] [--output-dir DIR] [--release]
 #   --force       build even if piko + x-shim versions are unchanged
 #   --output-dir  where staged assets land (default build/release-x)
-#   --release     create/update the GitHub prerelease (needs gh + write perms)
+#   --release     create/update the GitHub release (needs gh + write perms)
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 load_build_env
@@ -65,27 +67,27 @@ SHIM_VERSION="$XSHIM_VERSION"
 SHIM_MPP_URL="https://gitlab.com/$XSHIM_GITLAB_PROJECT/-/releases/v$SHIM_VERSION/downloads/patches-$SHIM_VERSION.mpp"
 log "  x-shim = $SHIM_VERSION (pinned)"
 
-# ---- skip logic vs the latest X prerelease's manifest ---------------------
-# X prereleases are tagged "x-v..."; the YouTube releases and the stock-cache are
+# ---- skip logic vs the latest X release's manifest ------------------------
+# X releases are tagged "x-v..."; the YouTube releases and the stock-cache are
 # ignored. Build when piko OR x-shim changed, or when forced.
 NEEDS_BUILD="true"
 if [ -n "$GH_REPO" ]; then
-  log "Reading last X prerelease manifest from $GH_REPO ..."
+  log "Reading last X release manifest from $GH_REPO ..."
   last_tag="$(gh api "repos/$GH_REPO/releases" --paginate 2>/dev/null \
     | jq -r '[.[] | select(.tag_name|startswith("x-v"))] | first | .tag_name // empty')" || true
   if [ -n "$last_tag" ] && gh release download "$last_tag" -R "$GH_REPO" \
        -p 'built-versions-x.json' -O "$WORK/last-x.json" --clobber 2>/dev/null; then
     last_piko="$(jq -r '.pikoVersion // empty' "$WORK/last-x.json")"
     last_shim="$(jq -r '.xShimVersion // empty' "$WORK/last-x.json")"
-    log "  last X prerelease $last_tag: piko=$last_piko shim=$last_shim"
+    log "  last X release $last_tag: piko=$last_piko shim=$last_shim"
     [ "$last_piko" = "$PIKO_VERSION" ] && [ "$last_shim" = "$SHIM_VERSION" ] && NEEDS_BUILD="false"
   else
-    log "  no prior X prerelease/manifest - building"
+    log "  no prior X release/manifest - building"
   fi
 fi
 [ -n "$FORCE" ] && { NEEDS_BUILD="true"; log "force flag set - building regardless"; }
 if [ "$NEEDS_BUILD" != "true" ]; then
-  log "piko + x-shim unchanged since the last X prerelease - skipping (success)."
+  log "piko + x-shim unchanged since the last X release - skipping (success)."
   exit 0
 fi
 
@@ -155,7 +157,7 @@ jq -n \
     morpheCliVersion:$cli, xVersion:$x}' > "$MANIFEST"
 log "wrote manifest:"; cat "$MANIFEST"
 
-# ---- release (always a prerelease - see the header) -----------------------
+# ---- release (never --latest - see the header) -----------------------------
 TAG="x-v$(date -u +%Y.%m.%d)-piko${PIKO_VERSION}-shim${SHIM_VERSION}"
 echo "X_RELEASE_TAG=$TAG" > "$WORK/release-x.env"
 echo "X_VER=$X_VER" >> "$WORK/release-x.env"
@@ -170,20 +172,19 @@ if [ -n "$DO_RELEASE" ]; then
     echo "- X target version: $X_VER"
     echo "- piko patches: $PIKO_VERSION | x-shim: $SHIM_VERSION | morphe-cli: $MORPHE_CLI_VERSION"
     echo
-    echo "EXPERIMENTAL / PRERELEASE. x-shim does not remove pairip, and this APK has"
-    echo "not been verified to launch on a device from CI. Install by hand from the"
-    echo "assets below; it is intentionally left out of the one-tap Obtainium config."
     echo "Package is com.twitter.android, so it replaces a stock X install."
+    echo "x-shim does not remove pairip (X's Play-integrity anti-tamper)."
   } > "$notes"
   assets=("$OUTDIR/$OUTAPK" "$MANIFEST")
   if gh release view "$TAG" -R "$GH_REPO" >/dev/null 2>&1; then
-    log "prerelease $TAG exists - updating in place (clobber assets + notes)"
-    retry 4 gh release edit "$TAG" -R "$GH_REPO" --prerelease --notes-file "$notes" || warn "could not update notes"
+    log "release $TAG exists - updating in place (clobber assets + notes)"
+    retry 4 gh release edit "$TAG" -R "$GH_REPO" --prerelease=false --latest=false \
+      --notes-file "$notes" || warn "could not update notes"
     retry 4 gh release upload "$TAG" -R "$GH_REPO" "${assets[@]}" --clobber \
-      || die "failed to upload assets to existing prerelease $TAG"
+      || die "failed to upload assets to existing release $TAG"
   else
-    log "creating GitHub prerelease $TAG on $GH_REPO"
-    retry 4 gh release create "$TAG" -R "$GH_REPO" --prerelease --title "$TAG" --notes-file "$notes" \
+    log "creating GitHub release $TAG on $GH_REPO"
+    retry 4 gh release create "$TAG" -R "$GH_REPO" --latest=false --title "$TAG" --notes-file "$notes" \
       "${assets[@]}"
   fi
 fi

@@ -69,9 +69,14 @@ LAST_ANDDEA=""; LAST_MORPHE=""
 if [ -n "$GH_REPO" ]; then
   log "Reading last build release manifest from $GH_REPO ..."
   # Newest release whose tag isn't the stock-cache tag and that has the manifest.
+  # Vantage X publishes its own "x-v..." releases into this same repo on its own
+  # cadence; they carry built-versions-x.json, not built-versions.json, so they
+  # must be skipped here or a newer X release would mask the last YouTube build
+  # and rebuild it every night.
   last_tag="$(gh api "repos/$GH_REPO/releases" --paginate 2>/dev/null \
     | jq -r --arg cache "$STOCK_CACHE_TAG" \
-        '[.[] | select(.tag_name != $cache)] | first | .tag_name // empty')" || true
+        '[.[] | select(.tag_name != $cache and (.tag_name|startswith("x-v")|not))]
+         | first | .tag_name // empty')" || true
   if [ -n "$last_tag" ]; then
     if gh release download "$last_tag" -R "$GH_REPO" -p 'built-versions.json' \
          -O "$OUTFILE.manifest" --clobber 2>/dev/null; then

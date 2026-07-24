@@ -1,9 +1,9 @@
 name: Build Vantage X
 
-# Separate from build.yml on purpose: the X (Twitter) build is the riskiest one
-# (single-source APKM download, piko + x-shim bundles, pairip left in place), so
-# it runs on its own and publishes its own PRERELEASE. A failure here never blocks
-# the YouTube nightly.
+# Separate from build.yml on purpose: the X (Twitter) build has a single-source
+# APKM download and tracks piko + x-shim, which move on their own schedule, so it
+# runs on its own and publishes its own "x-v..." release. A failure here never
+# blocks the YouTube nightly.
 
 on:
   schedule:
@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write        # create the X prerelease + read/write the stock-cache
+  contents: write        # create the X release + read/write the stock-cache
 
 jobs:
   build-x:
@@ -58,7 +58,7 @@ jobs:
             || python3 -m pip install --quiet curl_cffi
           python3 -c "import curl_cffi; print('curl_cffi', curl_cffi.__version__)"
 
-      - name: Build Vantage X (resolve, skip-if-unchanged, patch, assert, prerelease)
+      - name: Build Vantage X (resolve, skip-if-unchanged, patch, assert, release)
         run: |
           set -euo pipefail
           FORCE=""

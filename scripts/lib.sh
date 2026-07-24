@@ -83,8 +83,23 @@ sha256_of() {
 resolve_target_version() {
   local jar="$1" mpp="$2" pkg="$3" pin="${4:-}"
   if [ -n "$pin" ]; then printf '%s\n' "$pin"; return 0; fi
-  local out; out="$(java -jar "$jar" list-versions --patches="$mpp" -f "$pkg" 2>/dev/null \
-    | sed 's/\x1b\[[0-9;]*m//g')"
+  # list-versions has failed transiently in CI (runs 30001758724/30087966622):
+  # the same jar+mpp bytes resolved fine later on the same runner image, and the
+  # old 2>/dev/null discarded the only evidence. Keep stderr, surface it on
+  # failure, and retry before dying.
+  local out rc attempt errf
+  errf="$(mktemp)"
+  for attempt in 1 2 3; do
+    rc=0
+    out="$(java -jar "$jar" list-versions --patches="$mpp" -f "$pkg" 2>"$errf" \
+      | sed 's/\x1b\[[0-9;]*m//g')" || rc=$?
+    if [ "$rc" -eq 0 ] && grep -qE '\([0-9]+ patches\)' <<<"$out"; then break; fi
+    warn "list-versions attempt $attempt/3 for $pkg failed (java exit $rc)"
+    [ -s "$errf" ] && sed 's/^/  [stderr] /' "$errf" >&2
+    [ -n "$out" ] && sed 's/^/  [stdout] /' <<<"$out" >&2
+    [ "$attempt" -lt 3 ] && sleep $((attempt * 5))
+  done
+  rm -f "$errf"
   # Lines like "\t20.51.39 (60 patches)" or "\t12.2.0-release.0 (67 patches)". Take
   # the max patch-count tier, then the newest version in it. Keep the FULL version
   # token (everything before " (") instead of a digits-only regex, so a suffixed

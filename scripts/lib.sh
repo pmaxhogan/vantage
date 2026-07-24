@@ -83,10 +83,12 @@ sha256_of() {
 resolve_target_version() {
   local jar="$1" mpp="$2" pkg="$3" pin="${4:-}"
   if [ -n "$pin" ]; then printf '%s\n' "$pin"; return 0; fi
-  # list-versions has failed transiently in CI (runs 30001758724/30087966622):
-  # the same jar+mpp bytes resolved fine later on the same runner image, and the
-  # old 2>/dev/null discarded the only evidence. Keep stderr, surface it on
-  # failure, and retry before dying.
+  # Keep stderr and surface it on failure: the 07-23/24 CI failures (runs
+  # 30001758724/30087966622) looked like empty output but were really a
+  # NoClassDefFoundError (morphe-patches 1.36.0 needs a newer cli than the old
+  # 1.9.1 pin) that 2>/dev/null had discarded. The retry only helps genuinely
+  # transient JVM/runner flakes; a persistent crash fails fast three times and
+  # dies with the stack trace in the log.
   local out rc attempt errf
   errf="$(mktemp)"
   for attempt in 1 2 3; do

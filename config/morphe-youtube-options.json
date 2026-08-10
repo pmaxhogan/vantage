@@ -252,7 +252,10 @@
                 "enabled": true
             },
             "Change installer source": {
-                "enabled": false
+                "enabled": false,
+                "options": {
+                    "packageInstallerName": "com.android.vending"
+                }
             },
             "Settings menu filter": {
                 "enabled": true

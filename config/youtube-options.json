@@ -46,9 +46,6 @@
             "Hide feed flyout menu": {
                 "enabled": false
             },
-            "Disable forced auto audio tracks": {
-                "enabled": false
-            },
             "Disable forced auto captions": {
                 "enabled": false
             },
@@ -299,6 +296,24 @@
                 "enabled": true
             },
             "Voice Over Translation": {
+                "enabled": false
+            },
+            "Custom DPI": {
+                "enabled": false
+            },
+            "Force original audio": {
+                "enabled": false
+            },
+            "Playback in feeds": {
+                "enabled": false
+            },
+            "Settings menu filter": {
+                "enabled": false
+            },
+            "Spoof video streams": {
+                "enabled": false
+            },
+            "Wide search bar": {
                 "enabled": false
             }
         }

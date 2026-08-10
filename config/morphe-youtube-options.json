@@ -250,6 +250,18 @@
             },
             "Voice over translation": {
                 "enabled": true
+            },
+            "Change installer source": {
+                "enabled": false
+            },
+            "Settings menu filter": {
+                "enabled": true
+            },
+            "Playback in feeds": {
+                "enabled": true
+            },
+            "Wide search bar": {
+                "enabled": true
             }
         }
     }

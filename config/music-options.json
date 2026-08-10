@@ -43,9 +43,6 @@
             "Flyout menu components": {
                 "enabled": true
             },
-            "Disable forced auto audio tracks": {
-                "enabled": true
-            },
             "Disable forced auto captions": {
                 "enabled": true
             },
@@ -192,6 +189,18 @@
                 "enabled": true
             },
             "Video playback": {
+                "enabled": true
+            },
+            "Force original audio": {
+                "enabled": true
+            },
+            "Settings menu filter": {
+                "enabled": true
+            },
+            "Spoof video streams": {
+                "enabled": true
+            },
+            "Third-party lyrics": {
                 "enabled": true
             }
         }

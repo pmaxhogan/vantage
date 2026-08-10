@@ -9,7 +9,7 @@
             "Override certificate pinning": {
                 "enabled": false
             },
-            "Change package name": {
+            "Clone app": {
                 "enabled": true,
                 "options": {
                     "packageName": "app.vantage.youtube.morphe",

@@ -5,5 +5,5 @@ SponsorBlock
 Return YouTube Dislike
 Remove background playback restrictions
 GmsCore support
-Custom branding name for YouTube Music
+Custom branding for YouTube Music
 Settings for YouTube Music

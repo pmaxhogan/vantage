@@ -64,9 +64,6 @@
             "Enable gradient loading screen": {
                 "enabled": false
             },
-            "Hook YouTube Music actions": {
-                "enabled": false
-            },
             "Navigation bar components": {
                 "enabled": true
             },
@@ -82,9 +79,6 @@
                     "lightThemeBackgroundColor": "@color/yt_white3",
                     "strokeColor": ""
                 }
-            },
-            "Disable splash animation": {
-                "enabled": false
             },
             "Spoof app version": {
                 "enabled": false
@@ -110,18 +104,11 @@
                     "iconType": "cairo"
                 }
             },
-            "Custom branding icon for YouTube": {
+            "Custom branding for YouTube": {
                 "enabled": true,
                 "options": {
-                    "appIcon": "config/icon/vantage",
-                    "changeSplashIcon": false,
-                    "restoreOldSplashAnimation": false
-                }
-            },
-            "Custom branding name for YouTube": {
-                "enabled": true,
-                "options": {
-                    "appName": "Vantage"
+                    "customName": "Vantage",
+                    "customIcon": "config/icon/vantage"
                 }
             },
             "Hide Shorts dimming": {
@@ -131,12 +118,6 @@
                 "enabled": false,
                 "options": {
                     "doubleTapLengthArrays": "3, 5, 10, 15, 20, 30, 60, 120, 180"
-                }
-            },
-            "Custom header for YouTube": {
-                "enabled": false,
-                "options": {
-                    "customHeader": "custom_branding_icon"
                 }
             },
             "Force player buttons background": {
@@ -158,11 +139,7 @@
                 "enabled": false
             },
             "Theme": {
-                "enabled": false,
-                "options": {
-                    "darkThemeBackgroundColor": "@android:color/black",
-                    "lightThemeBackgroundColor": "@android:color/white"
-                }
+                "enabled": false
             },
             "Translations for YouTube": {
                 "enabled": false,

@@ -195,6 +195,7 @@ different sets and aren't listed here.
 | Overlay buttons | Adds player buttons including download and copy video URL. |
 | Swipe controls | Swipe gestures for brightness and volume. |
 | Player components | Declutters the video player. |
+| Description components | Declutters the video description panel. |
 | Video playback | Default quality and playback-speed controls. |
 
 </details>
@@ -218,8 +219,7 @@ different sets and aren't listed here.
 
 | Patch | What it does |
 |---|---|
-| Custom branding icon for YouTube | Applies the Vantage launcher icon. |
-| Custom branding name for YouTube | Sets the app name to Vantage. |
+| Custom branding for YouTube | Applies the Vantage launcher icon and app name. |
 | Settings for YouTube | Adds the in-app settings menu, labeled Vantage. |
 | GmsCore support | Routes the app through MicroG-RE so it runs unrooted. |
 

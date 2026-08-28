@@ -73,25 +73,11 @@
             "Track crossfade": {
                 "enabled": true
             },
-            "Custom branding icon for YouTube Music": {
+            "Custom branding for YouTube Music": {
                 "enabled": true,
                 "options": {
-                    "appIcon": "config/icon/vantage-music",
-                    "changeSplashIcon": false,
-                    "restoreOldSplashIcon": false
-                }
-            },
-            "Custom branding name for YouTube Music": {
-                "enabled": true,
-                "options": {
-                    "appNameNotification": "Vantage Music",
-                    "appNameLauncher": "Vantage Music"
-                }
-            },
-            "Custom header for YouTube Music": {
-                "enabled": false,
-                "options": {
-                    "customHeader": "custom_branding_icon"
+                    "customName": "Vantage Music",
+                    "customIcon": "config/icon/vantage-music"
                 }
             },
             "Hide overlay filter": {
@@ -100,12 +86,8 @@
             "Hide player overlay filter": {
                 "enabled": false
             },
-            "Dark theme": {
-                "enabled": true,
-                "options": {
-                    "darkThemeBackgroundColor": "@android:color/black",
-                    "materialYou": false
-                }
+            "Theme": {
+                "enabled": true
             },
             "Translations for YouTube Music": {
                 "enabled": true,
@@ -153,10 +135,7 @@
                 "enabled": true
             },
             "Player components": {
-                "enabled": true,
-                "options": {
-                    "swipeToDismissMiniPlayer": true
-                }
+                "enabled": true
             },
             "Certificate spoof": {
                 "enabled": true

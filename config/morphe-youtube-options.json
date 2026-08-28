@@ -187,8 +187,8 @@
             "Theme": {
                 "enabled": true,
                 "options": {
-                    "darkThemeBackgroundColor": "@android:color/black",
-                    "lightThemeBackgroundColor": "@android:color/white"
+                    "darkThemeColor": "@android:color/black",
+                    "lightThemeColor": "@android:color/white"
                 }
             },
             "Alternative thumbnails": {

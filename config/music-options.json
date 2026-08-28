@@ -67,6 +67,9 @@
             "Spoof app version for lyrics": {
                 "enabled": true
             },
+            "Spoof app version": {
+                "enabled": false
+            },
             "Change start page": {
                 "enabled": true
             },

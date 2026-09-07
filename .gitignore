@@ -36,3 +36,6 @@ Thumbs.db
 config/**/patching-*/
 config/**/vt/
 **/patching-*/
+
+# local test account creds, never committed
+.env.local

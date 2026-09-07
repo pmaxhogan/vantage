@@ -12,3 +12,4 @@
 Remove Ads
 Block update screen
 Hide verified users
+Daily time limit

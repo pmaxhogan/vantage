@@ -73,39 +73,83 @@ Vantage X is a patched Twitter/X build from the [piko](https://github.com/crimer
 patch set (the morphe patches for X). It's a first-class variant, in the one-tap
 Obtainium config alongside the YouTube apps, but it builds on a separate track from
 them - its own workflow (`build-x.yml`) and its own GitHub release tagged `x-v...`
-rather than riding the YouTube release - for two reasons:
+rather than riding the YouTube release - because X ships no single universal APK.
+It is distributed as a split APKM bundle, which morphe patches directly (merging the
+splits, then patching), and the download gate verifies every split's signing cert
+before patching. Since X 12.5.0 piko patches the app on its own; the x-shim
+compatibility layer that older X versions needed is no longer part of the build.
 
-- X ships no single universal APK. It is distributed as a split APKM bundle, which
-  morphe patches directly (merging the splits, then patching). The download gate
-  verifies every split's signing cert before patching.
-- Patching X 11.88+ needs a second bundle, the [x-shim](https://gitlab.com/inotia00/x-shim)
-  compatibility layer, stacked on top of piko. Its upstream churn is unrelated to
-  the anddea/Morphe cadence the YouTube builds track. x-shim does not remove pairip
-  (X's Play-integrity anti-tamper), so a re-signed sideloaded build can misbehave.
-
-Because pairip stays in and CI cannot log in to X on a phone, a green build is
-**not** proof the app launches or works - that is confirmed by hand. Vantage X was
-installed and exercised on a logged-in Pixel 6 (Android 16): it launches, the
-timeline loads, and the verified-user filter works as intended. Each build publishes
-as a prerelease pending that on-device check; once confirmed it is promoted to a
-full release, as the current build has been.
-
-X releases are published with `--latest=false`, so the repo's "latest release" slot
-stays on a YouTube build - that's the one carrying `obtainium-config.json`, which
-the install link above points at.
+X keeps pairip (its Play-integrity anti-tamper) and CI cannot log in to X on a
+phone, so a green build proves the APK patched and signed; the app itself is
+checked by hand on a Pixel 6 (Android 16) after each meaningful change - it
+launches, logs in, the timeline loads, and the verified-user filter and the daily
+limit behave as described below. X releases are published with `--latest=false`,
+so the repo's "latest release" slot stays on a YouTube build - that's the one
+carrying `obtainium-config.json`, which the install link above points at.
 
 | Variant | App | Package | Label | Patch source |
 |---|---|---|---|---|
-| Vantage X | Twitter/X | `com.twitter.android` | X | piko fork + x-shim (default set, `Browse tweet object` off, `Hide verified users` on) |
+| Vantage X | Twitter/X | `com.twitter.android` | X | piko fork (default set + `Hide verified users` + `Daily time limit`) |
 
-Its headline addition is **Hide verified users**: it hides every tweet and reply
+### Daily time limit
+
+Vantage X enforces a **mandatory daily time limit**. It is always on, cannot be
+disabled, and counts every second the app is in the foreground.
+
+- **Default 30 minutes a day**, configurable from 1 minute up to the build's ceiling
+  (see the four builds below), in hours and minutes.
+- **The day resets at 5:00 AM** in the phone's time zone, not at midnight.
+- **Lowering the limit applies immediately** (a limit below today's usage locks X on
+  the spot). **Raising it starts tomorrow at 5:00 AM.** If you change it several
+  times, the last value you saved is tomorrow's limit.
+- Toasts warn once each at 15, 10, 5 and 1 minutes remaining (a threshold within
+  5 minutes of the limit is skipped, and skipped warnings are never stacked).
+- When the limit is up, every screen of the app bounces to a lock screen showing
+  time used, the countdown to 5:00 AM, a **Change daily limit** button and a
+  **Close X** button. Only the limit screen is reachable until the reset.
+- The limit screen shows today's usage, a 7-day bar graph, the current limit, a
+  short explanation, and hour/minute pickers with a prominent **Save limit** button;
+  nothing applies until you save and confirm. It is reachable from X's settings list
+  (the row above Piko), from the top of the Piko settings screen, from the lock
+  screen, and from the app icon's long-press shortcut.
+- **It survives force-close, the back button, deep links, share targets, shortcuts,
+  reboot, clearing cache or storage, and reinstalling the app.** Time spent comes
+  from Android's own usage statistics (kept by the system, not the app) merged with
+  an in-app timer, and both the limit history and the daily counters are written as
+  signed records to several places outside the app's data and merged back on read,
+  so the strictest surviving copy always wins. Setting the clock forward or back
+  does not reset the day either: within a boot the app trusts elapsed time, and the
+  day never moves backwards. On first launch X asks for three one-time special
+  permissions (Usage access, Modify system settings, All files access) and does
+  nothing until all three are granted. A factory reset, root, or replacing Vantage X
+  with a different build clears it - that is the intended ceiling.
+
+Each X release carries **four APKs** that differ only in the highest limit a user can
+set (a build-time option, hard-capped at 2 hours):
+
+| APK | Max daily limit | Default limit |
+|---|---|---|
+| `vantage-x-<ver>-max2h.apk` | 2 hours | 30 minutes |
+| `vantage-x-<ver>-max1h.apk` | 1 hour | 30 minutes |
+| `vantage-x-<ver>-max30m.apk` | 30 minutes | 30 minutes |
+| `vantage-x-<ver>-max15m.apk` | 15 minutes | 15 minutes |
+
+`obtainium-config.json` tracks the `max2h` build; to run a stricter ceiling, install
+that APK by hand (same package and key, so it installs over the current one) and
+change the Obtainium APK filter to match it. The pure limit rules (5am day keys,
+decrease-now / increase-tomorrow, warning de-duplication, record signing and
+merging, clock-tamper handling) are covered by JUnit tests in the piko fork.
+
+### Hide verified users
+
+Vantage X's other addition is **Hide verified users**: it hides every tweet and reply
 whose author has a verified check - the blue X Premium badge (including a badge the
 user has hidden in-UI, since the underlying `is_blue_verified` flag stays set), plus
 gold/grey org and legacy verified. It also hides tweets that **reply to, retweet, or
 quote-tweet** a verified account (so a reply to a blue-check is hidden even when the
 replier is not), and it catches pinned tweets and "show more replies" pagination, not
 just the main feed. Upstream piko has no such patch (it is an open, unimplemented
-request there), so Vantage X builds from a small
+request there), so Vantage X builds from a
 [fork of piko](https://github.com/pmaxhogan/piko) that adds it. The patch filters the
 raw JSON server response at the same hook piko's own "Log server response" uses,
 before the app parses it, so it is independent of the app's per-version obfuscation
@@ -115,30 +159,32 @@ the JSON filter logic is unit-tested. (The reply-to-verified match needs the ver
 account present in the same response, so it is reliable inside a tweet's reply thread
 and best-effort in the home feed.)
 
-The filter was verified on-device against real X 12.2.0 responses (a captured sample
-of the For You feed, a verified profile, and explore): it removed every
-verified/retweet/quote/reply-to-verified timeline entry and kept every other one with
-no false removals, and the running app visibly hides verified accounts. An earlier
-build silently did nothing because current X had renamed its GraphQL timeline fields
-(`tweet_results`/`user_results`/`itemContent` became `tweetResult`/`user_result`/
-`content`); the on-device capture caught it, so the filter now matches the live schema
-(and still accepts the old names) rather than an assumed one.
+The filter accepts both the current X GraphQL field names (`tweetResult`,
+`user_result`, `content`) and the older ones (`tweet_results`, `user_results`,
+`itemContent`), and it was re-checked on-device on X 12.19.1: a verified profile
+with 108K posts renders an empty Posts tab. Vantage X also **defaults the home tab
+to Following** (the For You tab is removed via piko's "Customize timeline top bar"
+with the `customisation_timeline_tabs` default set to `hide_forYou`). It stays a
+setting, so For You can be restored to "Show both" in piko settings.
 
-Vantage X also **defaults the home tab to Following** (the For You tab is removed via
-piko's "Customize timeline top bar" with the `customisation_timeline_tabs` default set
-to `hide_forYou`). It stays a setting, so For You can be restored to "Show both" in
-piko settings.
+### Build details
 
 The package stays `com.twitter.android`, so Vantage X replaces a stock X install
-rather than sitting beside it (piko has no package-rename patch for X). x-shim does
-not strip pairip, X's Play-integrity anti-tamper, which stays in the patched build.
-Its config is `config/x-options.json`, which enables piko's recommended default set
-plus the three x-shim layers. Five piko patches are left off: `Browse tweet object` (a debug
-share-menu entry, excluded by request) and four that are off upstream for good
-reason (`Bring back twitter`, `Disunify xchat system`, `Dynamic color`,
-`Export all activities`). Every X patch is listed explicitly in the options file,
-so flipping any is a one-line change. The target version auto-resolves to the newest
-non-`ripped` compatible build, currently X 12.2.0-release.0.
+rather than sitting beside it (piko has no package-rename patch for X). The fork
+syncs with upstream piko nightly (a sync PR that auto-merges when clean and rebuilds
+the `.mpp` on every push), and the X build floats to the fork's latest release and
+to the newest X version those patches support, so base and patch versions keep up
+without manual bumps - the same shape as the anddea fork the YouTube builds use.
+piko's `Block update screen` is on, so an old base never shows X's "update your app"
+nag even between bumps.
+
+Its config is the four `config/x-options-max*.json` files, which enable piko's
+recommended default set plus the two Vantage patches and differ only in
+`maxLimitMinutes`. Four piko patches are left off because they are off upstream for
+good reason (`Bring back twitter`, `Dynamic color`, `Export all activities`, and the
+debug-only `Browse tweet object`). Every X patch is listed explicitly in the options
+files, so flipping any is a one-line change. The target version auto-resolves to the
+newest non-`ripped` compatible build, currently X 12.19.1-release.0.
 
 ## Enabled patches (Vantage / Vantage Alt)
 
@@ -258,16 +304,16 @@ limitations below.
 
 Vantage X builds separately. `.github/workflows/build-x.yml` runs
 `scripts/build-x.sh` on its own daily schedule, so a flaky X build (single-source
-APKM download, piko/x-shim churn) never blocks the YouTube nightly. It
-resolves piko's latest release and the pinned x-shim bundle, skips early when
-neither changed (state is the newest `x-v...` release's `built-versions-x.json`),
-downloads the split APKM through the same signature gate, patches with both bundles
-stacked (`patch.sh` takes repeated `--patches`), asserts, and publishes a release
-tagged `x-v<date>-piko<v>-shim<v>` (with `--latest=false`, so the "latest release"
-slot stays on a YouTube build). Conversely, the YouTube skip logic ignores `x-v*`
-tags when it looks for the last build's manifest. The shared scripts (`lib.sh`,
-`download-apk.sh`, `patch.sh`, `assert.sh`) are reused; only the orchestrator and
-options differ.
+APKM download, piko churn) never blocks the YouTube nightly. It resolves the piko
+fork's latest release, skips early when it is unchanged (state is the newest
+`x-v...` release's `built-versions-x.json`), downloads the split APKM through the
+same signature gate, patches it once per daily-limit ceiling (four options files),
+asserts each APK, and publishes a release tagged `x-v<date>-piko<v>` (with
+`--latest=false`, so the "latest release" slot stays on a YouTube build).
+Conversely, the YouTube skip logic ignores `x-v*` tags when it looks for the last
+build's manifest. The shared scripts (`lib.sh`, `download-apk.sh`, `patch.sh`,
+`assert.sh`) are reused; only the orchestrator and options differ. The fork's own
+`sync-upstream.yml` and `build-mpp.yml` keep its `.mpp` current with crimera/piko.
 
 ### CI guards
 
@@ -358,8 +404,8 @@ config/
   youtube-options.json        anddea YouTube, 23 enabled
   music-options.json          anddea YouTube Music, default set + branding
   morphe-youtube-options.json Morphe YouTube, default set + Custom branding + package
-  x-options.json              piko X, recommended default set + x-shim; Browse tweet object off
-  build.env                   pinned morphe-cli, channel selectors, packages, version pins, x-shim pin
+  x-options-max*.json         piko X, four files differing only in the daily-limit ceiling
+  build.env                   pinned morphe-cli, channel selectors, packages, version pins
   expected-signatures.txt     genuine vendor signing certs the stock download gate accepts
   assertions/*.txt            non-negotiable names, forbidden names, inert allowlists, expected count
   icon/                       custom icon sets per variant
@@ -395,10 +441,10 @@ bash scripts/build.sh --force                 # build + stage in build/release
   re-enable fixes it.
 - Vantage M's Morphe monochrome and notification icon assets are validated through
   morphe-cli's resource compiler, not a live themed-icon render.
-- Vantage X keeps pairip (x-shim does not strip it) and cannot be exercised on a
+- Vantage X keeps pairip (piko does not strip it) and cannot be exercised on a
   logged-in device in CI, so a green build only proves it patched and signed, not
-  that it launches or works. Each build is published as a prerelease and hand-installed
-  for a device check, then promoted to a full release once confirmed. It is also
+  that it launches or works; that is checked by hand on a Pixel 6 after meaningful
+  changes. It is also
   effectively single-source: APKMirror is the only mirror that serves the genuine
   APKM (APKPure re-signs it), so an APKMirror outage stops X builds even though the
   YouTube variants have a fallback. Its pinned signing cert also means an X

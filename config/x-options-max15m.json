@@ -77,6 +77,13 @@
       "Customize timeline top bar": {
         "enabled": true
       },
+      "Daily time limit": {
+        "enabled": true,
+        "options": {
+          "maxLimitMinutes": 15,
+          "enableTestHooks": false
+        }
+      },
       "Delete from database": {
         "enabled": true
       },

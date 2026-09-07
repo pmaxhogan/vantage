@@ -84,7 +84,7 @@ apps = [
     # newest release often has no vantage-x APK; fallbackToOlderReleases (on in
     # vantage_addl) walks back to the last X one.
     app("com.twitter.android", "Vantage X", "pmaxhogan", VANTAGE_URL,
-        vantage_addl(r"vantage-x-.*\.apk")),
+        vantage_addl(r"vantage-x-.*-max2h\.apk")),
     app("app.revanced.android.gms", "MicroG-RE", "MorpheApp", MICROG_URL,
         microg_addl),
 ]

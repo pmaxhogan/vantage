@@ -70,7 +70,7 @@
       "apkUrls": "[]",
       "otherAssetUrls": "[]",
       "preferredApkIndex": 0,
-      "additionalSettings": "{\"includePrereleases\": false, \"fallbackToOlderReleases\": true, \"filterReleaseTitlesByRegEx\": \"\", \"filterReleaseNotesByRegEx\": \"\", \"verifyLatestTag\": false, \"sortMethodChoice\": \"date\", \"useLatestAssetDateAsReleaseDate\": false, \"trackOnly\": false, \"versionExtractionRegEx\": \"\", \"matchGroupToUse\": \"\", \"versionDetection\": false, \"releaseDateAsVersion\": true, \"useVersionCodeAsOSVersion\": false, \"apkFilterRegEx\": \"vantage-x-.*\\\\.apk\", \"invertAPKFilter\": false, \"autoApkFilterByArch\": false, \"appName\": \"\", \"appAuthor\": \"\"}",
+      "additionalSettings": "{\"includePrereleases\": false, \"fallbackToOlderReleases\": true, \"filterReleaseTitlesByRegEx\": \"\", \"filterReleaseNotesByRegEx\": \"\", \"verifyLatestTag\": false, \"sortMethodChoice\": \"date\", \"useLatestAssetDateAsReleaseDate\": false, \"trackOnly\": false, \"versionExtractionRegEx\": \"\", \"matchGroupToUse\": \"\", \"versionDetection\": false, \"releaseDateAsVersion\": true, \"useVersionCodeAsOSVersion\": false, \"apkFilterRegEx\": \"vantage-x-.*-max2h\\\\.apk\", \"invertAPKFilter\": false, \"autoApkFilterByArch\": false, \"appName\": \"\", \"appAuthor\": \"\"}",
       "lastUpdateCheck": null,
       "pinned": false,
       "categories": [],

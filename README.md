@@ -119,9 +119,9 @@ disabled, and counts every second the app is in the foreground.
   signed records to several places outside the app's data and merged back on read,
   so the strictest surviving copy always wins. Setting the clock forward or back
   does not reset the day either: within a boot the app trusts elapsed time, and the
-  day never moves backwards. On first launch X asks for three one-time special
-  permissions (Usage access, Modify system settings, All files access) and does
-  nothing until all three are granted. A factory reset, root, or replacing Vantage X
+  day never moves backwards. On first launch X asks for two one-time special
+  permissions (Usage access and All files access) and does nothing until both are
+  granted. A factory reset, root, or replacing Vantage X
   with a different build clears it - that is the intended ceiling.
 
 Each X release carries **four APKs** that differ only in the highest limit a user can

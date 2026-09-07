@@ -187,9 +187,9 @@ if [ -n "$DO_RELEASE" ]; then
     echo "| vantage-x-$X_VER-max30m.apk | 30 minutes | 30 minutes |"
     echo "| vantage-x-$X_VER-max15m.apk | 15 minutes | 15 minutes |"
     echo
-    echo "The daily limit is always on and resets at 5:00 AM local time. It needs three"
-    echo "one-time special permissions (Usage access, Modify system settings, All files"
-    echo "access) on first launch. obtainium-config.json tracks the max2h build."
+    echo "The daily limit is always on and resets at 5:00 AM local time. It needs two"
+    echo "one-time special permissions (Usage access and All files access) on first"
+    echo "launch. obtainium-config.json tracks the max2h build."
     echo
     echo "Package is com.twitter.android, so it replaces a stock X install."
     echo "pairip (X's Play-integrity anti-tamper) is not removed."

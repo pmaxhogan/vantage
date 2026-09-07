@@ -174,7 +174,20 @@ assert_variant() {
   local bytes mb; bytes="$(stat -c%s "$APK" 2>/dev/null || stat -f%z "$APK")"; mb=$((bytes/1024/1024))
   if [ "$mb" -lt "$MINMB" ]; then warn "[$NAME] APK too small: ${mb}MB < ${MINMB}MB"; fail=1
   else log "[$NAME] size ${mb}MB OK"; fi
-  if command -v unzip >/dev/null 2>&1; then
+  # Python's zipfile CRC-tests every entry and has no false positives; Ubuntu's
+  # patched Info-ZIP unzip refused a perfectly valid 257MB X 12.19.1 APK (its
+  # zip-bomb heuristic, most likely) that apksigner had just verified, so unzip
+  # is only the fallback when python3 is missing.
+  if command -v python3 >/dev/null 2>&1; then
+    if python3 - "$APK" <<'PY' >/dev/null 2>&1
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z:
+    bad = z.testzip()
+sys.exit(1 if bad else 0)
+PY
+    then log "[$NAME] zip integrity OK (python zipfile)"
+    else warn "[$NAME] zip integrity check FAILED (python zipfile)"; fail=1; fi
+  elif command -v unzip >/dev/null 2>&1; then
     unzip -qt "$APK" >/dev/null 2>&1 && log "[$NAME] zip integrity OK" \
       || { warn "[$NAME] zip integrity check FAILED"; fail=1; }
   fi

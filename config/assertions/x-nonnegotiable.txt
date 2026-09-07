@@ -1,12 +1,14 @@
 # Patches that must be applied for the Vantage X (Twitter) build, one per line.
-# Names must match the piko / x-shim patch names exactly so an upstream rename
-# trips this guard. The count isn't checked - the piko default set grows over time.
+# Names must match the piko patch names exactly so an upstream rename trips this
+# guard. The count isn't checked - the piko default set grows over time.
 #
-# The three "Abstract shim layer" patches are the x-shim compatibility layer that
-# makes X 11.88+ patchable at all; without them the build is meaningless. Remove
-# Ads is the core reason to run a patched X.
-Abstract shim layer
-Abstract shim layer for native library
-Abstract shim layer for method
+# x-shim is gone: from X 12.5.0 piko patches the app without inotia00's shim
+# layer (upstream README), so the three "Abstract shim layer" patches are no
+# longer part of the build. Remove Ads is the core reason to run a patched X.
+# Block update screen is what stops the "update your app" nag on an old base.
+# Hide verified users and Daily time limit are the two Vantage-only patches from
+# the pmaxhogan/piko fork; a fingerprint break on a future auto-bump must fail
+# the build rather than ship an X with no limit.
 Remove Ads
+Block update screen
 Hide verified users

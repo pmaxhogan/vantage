@@ -2,13 +2,15 @@
 #
 # build-x.sh - Vantage X (Twitter) build orchestrator, deliberately SEPARATE from
 # build.sh so a flaky X build can never take the YouTube nightly down with it: X
-# has a single-source APKM download and two floating/pinned patch bundles (piko +
-# x-shim) that churn on their own schedule. It publishes its OWN GitHub release,
-# tagged "x-v...", on its own cadence.
+# has a single-source APKM download and a patch bundle (the pmaxhogan/piko fork)
+# that churns on its own schedule. It publishes its OWN GitHub release, tagged
+# "x-v...", on its own cadence.
 #
-#   resolve piko(float)+x-shim(pinned) -> (skip?) -> download cli+bundles ->
-#   resolve X version -> keystore preflight -> download APKM -> patch(piko+shim) ->
-#   assert -> stage -> release.
+#   resolve piko(float) -> (skip?) -> download cli+bundle -> resolve X version ->
+#   keystore preflight -> download APKM -> patch -> assert -> stage -> release.
+#
+# x-shim (inotia00's compatibility layer for X 11.88-12.4) is no longer stacked:
+# from X 12.5.0 piko patches the app on its own (piko README).
 #
 # State is the latest X release's built-versions-x.json, never a committed file.
 #
@@ -17,7 +19,7 @@
 # obtainium-config.json (the README's install link points at /releases/latest).
 #
 # Usage: build-x.sh [--force] [--output-dir DIR] [--release]
-#   --force       build even if piko + x-shim versions are unchanged
+#   --force       build even if the piko version is unchanged
 #   --output-dir  where staged assets land (default build/release-x)
 #   --release     create/update the GitHub release (needs gh + write perms)
 set -euo pipefail
@@ -61,15 +63,9 @@ PIKO_MPP_URL="$(jq -r '.assets[]|select(.name|endswith(".mpp"))|.browser_downloa
 [ -n "$PIKO_MPP_URL" ] || die "no .mpp asset on piko release $PIKO_VERSION"
 log "  piko = $PIKO_VERSION"
 
-# ---- resolve x-shim (pinned to an exact version, sha256-verified) ---------
-: "${XSHIM_GITLAB_PROJECT:?}"; : "${XSHIM_VERSION:?}"
-SHIM_VERSION="$XSHIM_VERSION"
-SHIM_MPP_URL="https://gitlab.com/$XSHIM_GITLAB_PROJECT/-/releases/v$SHIM_VERSION/downloads/patches-$SHIM_VERSION.mpp"
-log "  x-shim = $SHIM_VERSION (pinned)"
-
 # ---- skip logic vs the latest X release's manifest ------------------------
 # X releases are tagged "x-v..."; the YouTube releases and the stock-cache are
-# ignored. Build when piko OR x-shim changed, or when forced.
+# ignored. Build when piko changed, or when forced.
 NEEDS_BUILD="true"
 if [ -n "$GH_REPO" ]; then
   log "Reading last X release manifest from $GH_REPO ..."
@@ -78,23 +74,21 @@ if [ -n "$GH_REPO" ]; then
   if [ -n "$last_tag" ] && gh release download "$last_tag" -R "$GH_REPO" \
        -p 'built-versions-x.json' -O "$WORK/last-x.json" --clobber 2>/dev/null; then
     last_piko="$(jq -r '.pikoVersion // empty' "$WORK/last-x.json")"
-    last_shim="$(jq -r '.xShimVersion // empty' "$WORK/last-x.json")"
-    log "  last X release $last_tag: piko=$last_piko shim=$last_shim"
-    [ "$last_piko" = "$PIKO_VERSION" ] && [ "$last_shim" = "$SHIM_VERSION" ] && NEEDS_BUILD="false"
+    log "  last X release $last_tag: piko=$last_piko"
+    [ "$last_piko" = "$PIKO_VERSION" ] && NEEDS_BUILD="false"
   else
     log "  no prior X release/manifest - building"
   fi
 fi
 [ -n "$FORCE" ] && { NEEDS_BUILD="true"; log "force flag set - building regardless"; }
 if [ "$NEEDS_BUILD" != "true" ]; then
-  log "piko + x-shim unchanged since the last X release - skipping (success)."
+  log "piko unchanged since the last X release - skipping (success)."
   exit 0
 fi
 
 # ---- fetch toolchain + bundles --------------------------------------------
 CLI_JAR="$TOOLS/morphe-cli-$MORPHE_CLI_VERSION-all.jar"
 PIKO_MPP="$TOOLS/piko-$PIKO_VERSION.mpp"
-SHIM_MPP="$TOOLS/x-shim-$SHIM_VERSION.mpp"
 dl() { log "download $(basename "$2")"; curl -fsSL "$1" -o "$2" || die "download failed: $1"; }
 if [ ! -f "$CLI_JAR" ]; then
   cli_json="$(gh api "repos/$MORPHE_CLI_REPO/releases/tags/v$MORPHE_CLI_VERSION" 2>/dev/null \
@@ -104,14 +98,6 @@ if [ ! -f "$CLI_JAR" ]; then
   dl "$CLI_JAR_URL" "$CLI_JAR"
 fi
 [ -f "$PIKO_MPP" ] || dl "$PIKO_MPP_URL" "$PIKO_MPP"
-[ -f "$SHIM_MPP" ] || dl "$SHIM_MPP_URL" "$SHIM_MPP"
-
-# x-shim is a ~35MB opaque binary we pin; a hash mismatch means the pinned release
-# changed under us (or a bad download) - refuse it rather than patch with a surprise.
-got_shim_sha="$(sha256_of "$SHIM_MPP")"
-[ "$got_shim_sha" = "${XSHIM_SHA256:?XSHIM_SHA256 must be set to pin x-shim}" ] \
-  || die "x-shim sha256 mismatch: expected $XSHIM_SHA256 got $got_shim_sha"
-log "x-shim sha256 pinned OK"
 
 # ---- resolve target X version (piko bundle is the binding constraint) -----
 X_VER="$(resolve_target_version "$CLI_JAR" "$PIKO_MPP" "$X_PACKAGE" "${X_VERSION_PIN:-}")"
@@ -125,12 +111,12 @@ log "target X version: $X_VER"
 STOCK_APKM="$STOCK/${X_PACKAGE}-${X_VER}.apkm"
 "$VANTAGE_ROOT/scripts/download-apk.sh" "$X_PACKAGE" "$X_VER" "${X_ARCH:-universal}" "$STOCK_APKM" apkm
 
-# ---- patch (piko + x-shim stacked) ----------------------------------------
+# ---- patch ----------------------------------------------------------------
 OUTAPK="vantage-x-${X_VER}.apk"
 RESULT="$OUT/x-result.json"; LOGF="$OUT/x-patch.log"; TMP="$TMPROOT/x"
 rm -rf "$TMP"; mkdir -p "$TMP"
 "$VANTAGE_ROOT/scripts/patch.sh" \
-  --jar "$CLI_JAR" --patches "$PIKO_MPP" --patches "$SHIM_MPP" \
+  --jar "$CLI_JAR" --patches "$PIKO_MPP" \
   --options "$VANTAGE_ROOT/config/x-options.json" \
   --keystore "$KEYSTORE" --apk "$STOCK_APKM" --out "$OUT/$OUTAPK" \
   --result "$RESULT" --log "$LOGF" --tmp "$TMP"
@@ -151,14 +137,13 @@ log "staged $OUTDIR/$OUTAPK"
 MANIFEST="$OUTDIR/built-versions-x.json"
 jq -n \
   --arg builtAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  --arg piko "$PIKO_VERSION" --arg shim "$SHIM_VERSION" \
+  --arg piko "$PIKO_VERSION" \
   --arg cli "$MORPHE_CLI_VERSION" --arg x "$X_VER" \
-  '{builtAt:$builtAt, pikoVersion:$piko, xShimVersion:$shim,
-    morpheCliVersion:$cli, xVersion:$x}' > "$MANIFEST"
+  '{builtAt:$builtAt, pikoVersion:$piko, morpheCliVersion:$cli, xVersion:$x}' > "$MANIFEST"
 log "wrote manifest:"; cat "$MANIFEST"
 
 # ---- release (never --latest - see the header) -----------------------------
-TAG="x-v$(date -u +%Y.%m.%d)-piko${PIKO_VERSION}-shim${SHIM_VERSION}"
+TAG="x-v$(date -u +%Y.%m.%d)-piko${PIKO_VERSION}"
 echo "X_RELEASE_TAG=$TAG" > "$WORK/release-x.env"
 echo "X_VER=$X_VER" >> "$WORK/release-x.env"
 log "X release tag would be: $TAG"
@@ -170,10 +155,10 @@ if [ -n "$DO_RELEASE" ]; then
     echo "Vantage X (Twitter/X) build $TAG"
     echo
     echo "- X target version: $X_VER"
-    echo "- piko patches: $PIKO_VERSION | x-shim: $SHIM_VERSION | morphe-cli: $MORPHE_CLI_VERSION"
+    echo "- piko patches: $PIKO_VERSION | morphe-cli: $MORPHE_CLI_VERSION"
     echo
     echo "Package is com.twitter.android, so it replaces a stock X install."
-    echo "x-shim does not remove pairip (X's Play-integrity anti-tamper)."
+    echo "pairip (X's Play-integrity anti-tamper) is not removed."
   } > "$notes"
   assets=("$OUTDIR/$OUTAPK" "$MANIFEST")
   if gh release view "$TAG" -R "$GH_REPO" >/dev/null 2>&1; then

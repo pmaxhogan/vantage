@@ -18,7 +18,7 @@
 # download-apk.sh for why that order matters.
 #
 # Each clone is a renamed, recolored copy of the stock app patched with the
-# vantage-patches "Clone with badge" patch (packageName/appLabel/badgeLabel/
+# vantage-patches "Clone with badge" patch (packageName/appLabel/badgeNumber/
 # iconColor), so several accounts can be signed in side by side. The package,
 # label and icon color per clone number live in config/build.env
 # (CLAUDE_CLONE_<N>_*), not here.
@@ -197,7 +197,7 @@ for n in $CLAUDE_CLONES; do
     -e "$PATCH_NAME" \
     -O packageName="$clone_pkg" \
     -O appLabel="$label" \
-    -O badgeLabel="$n" \
+    -O badgeNumber="$n" \
     -O iconColor="$color" \
     -f \
     --keystore="$KEYSTORE" \

@@ -264,10 +264,10 @@ if [ -n "$DO_RELEASE" ]; then
       echo "| claude-$n-$CLAUDE_VER.apk | ${!label_var} | ${CLAUDE_PACKAGE}.${!suffix_var} | $n |"
     done
     echo
-    echo "First install is manual (Obtainium can't install a brand-new app id on its"
-    echo "own); afterwards Obtainium tracks and updates it like any other app. If an"
-    echo "earlier hand-built copy with the same name is already installed, uninstall it"
-    echo "first - the signing key differs and Android refuses to update over a mismatch."
+    echo "Install the first clone APK manually; afterwards Obtainium tracks and updates"
+    echo "it like any other app in the bundled config. If an earlier hand-built copy"
+    echo "with the same name is already installed, uninstall it first - the signing key"
+    echo "differs and Android refuses to install over the mismatch."
   } > "$notes"
   assets=("${OUTAPKS[@]}" "$MANIFEST")
   if gh release view "$TAG" -R "$GH_REPO" >/dev/null 2>&1; then

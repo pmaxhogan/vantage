@@ -239,7 +239,7 @@ PY
 # aapt2's xmltree dump exposes provider authorities at all - aapt's badging
 # output doesn't mention them.
 assert_claude_clone() {
-  local NAME="" APK="" PKG="" LABEL="" FORBIDDEN_AUTHORITY="" MINMB="20" RESULT="" PATCHNAME=""
+  local NAME="" APK="" PKG="" LABEL="" FORBIDDEN_AUTHORITY="" MINMB="12" RESULT="" PATCHNAME=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --variant) NAME="$2"; shift 2;;

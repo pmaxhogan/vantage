@@ -293,7 +293,7 @@ assert_claude_clone() {
   manifest_xml="$("$aapt2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null || true)"
   if [ -z "$manifest_xml" ]; then
     warn "[$NAME] could not dump AndroidManifest.xml via aapt2 - cannot check authorities"; fail=1
-  elif grep -qF "authorities=\"$FORBIDDEN_AUTHORITY\"" <<<"$manifest_xml"; then
+  elif grep -F 'authorities' <<<"$manifest_xml" | grep -qF "\"$FORBIDDEN_AUTHORITY\""; then
     warn "[$NAME] FORBIDDEN authority '$FORBIDDEN_AUTHORITY' still present - clone was not fully rebranded, it will collide with the original app (or another clone) at install time"
     fail=1
   else

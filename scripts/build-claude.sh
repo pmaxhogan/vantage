@@ -131,7 +131,7 @@ resolve_claude_version() {
         ;;
       *) warn "  resolve-claude-version: no resolver for source '$src'"; continue ;;
     esac
-    if [ -n "$ver" ]; then log "  resolve-claude-version: $src -> $ver"; printf '%s\n' "$ver"; return 0; fi
+    if [ -n "$ver" ]; then warn "  resolve-claude-version: $src -> $ver"; printf '%s\n' "$ver"; return 0; fi
     warn "  resolve-claude-version: $src gave no answer"
   done
   return 1

@@ -117,7 +117,7 @@
                 "enabled": true
             },
             "Enable debug logging": {
-                "enabled": true
+                "enabled": false
             },
             "Disable QUIC protocol": {
                 "enabled": true

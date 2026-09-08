@@ -109,11 +109,14 @@ fi
 # The clone patch has no compatiblePackages gate (a rename/badge patch works on
 # any build), so `morphe-cli list-versions` isn't the right tool here - it's
 # built for a curated compatibility tier, and Claude ships new builds roughly
-# daily. Instead: ask the download sources what the newest version they list
-# is, in CLAUDE_DL_SOURCES order, and take the first answer.
+# daily. Instead: ask every download source what the newest version it lists
+# and take the highest, since the mirrors lag each other by days at times
+# (apkcombo listed 1.260904.19 while Uptodown already had 1.260907.19). The
+# download step then tries the sources in order and falls through to whichever
+# one actually carries that version.
 resolve_claude_version() {
   local ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-  local src ver=""
+  local src ver="" best=""
   for src in ${CLAUDE_DL_SOURCES:-apkcombo uptodown}; do
     case "$src" in
       apkcombo)
@@ -131,13 +134,22 @@ resolve_claude_version() {
         ;;
       *) warn "  resolve-claude-version: no resolver for source '$src'"; continue ;;
     esac
-    if [ -n "$ver" ]; then warn "  resolve-claude-version: $src -> $ver"; printf '%s\n' "$ver"; return 0; fi
-    warn "  resolve-claude-version: $src gave no answer"
+    if [ -n "$ver" ]; then
+      warn "  resolve-claude-version: $src -> $ver"
+      best="$(printf '%s\n%s\n' "$best" "$ver")"
+    else
+      warn "  resolve-claude-version: $src gave no answer"
+    fi
   done
-  return 1
+  [ -n "$best" ] || return 1
+  # Every distinct version seen, newest first. The caller downloads the newest
+  # it can actually get, so a version only one gated mirror lists does not
+  # turn into a failed build.
+  printf '%s\n' "$best" | grep -v '^$' | sort -Vr | uniq
 }
-CLAUDE_VER="$(resolve_claude_version)" || die "could not resolve the latest Claude version from any of: ${CLAUDE_DL_SOURCES:-apkcombo uptodown}"
-log "target Claude version: $CLAUDE_VER"
+CLAUDE_CANDIDATES="$(resolve_claude_version)" || die "could not resolve the latest Claude version from any of: ${CLAUDE_DL_SOURCES:-apkcombo uptodown}"
+CLAUDE_VER="$(printf '%s\n' "$CLAUDE_CANDIDATES" | head -1)"
+log "target Claude version: $CLAUDE_VER (candidates: $(printf '%s' "$CLAUDE_CANDIDATES" | tr '\n' ' '))"
 
 # ---- skip logic vs the latest Claude release's manifest --------------------
 # Rebuild when EITHER the Claude app version OR the vantage-patches bundle
@@ -170,8 +182,22 @@ fi
 "$VANTAGE_ROOT/scripts/assert.sh" keystore-preflight "$KEYSTORE"
 
 # ---- download + merge the split bundle --------------------------------------
-STOCK_APK="$STOCK/${CLAUDE_PACKAGE}-${CLAUDE_VER}.merged.apk"
-"$VANTAGE_ROOT/scripts/download-apk.sh" "$CLAUDE_PACKAGE" "$CLAUDE_VER" "$CLAUDE_ARCH" "$STOCK_APK" bundle
+# Newest candidate first; fall back to an older one only if no source can
+# deliver the newer version. Never fall back to a version already released.
+STOCK_APK=""
+for cand in $CLAUDE_CANDIDATES; do
+  if [ -n "${last_claude_ver:-}" ] && [ "$cand" = "$last_claude_ver" ] && [ "${last_vp_ver:-}" = "$VANTAGE_PATCHES_VERSION" ] && [ -z "$FORCE" ]; then
+    log "newer candidates were not downloadable and $cand is already released - skipping (success)."
+    exit 0
+  fi
+  apk="$STOCK/${CLAUDE_PACKAGE}-${cand}.merged.apk"
+  if "$VANTAGE_ROOT/scripts/download-apk.sh" "$CLAUDE_PACKAGE" "$cand" "$CLAUDE_ARCH" "$apk" bundle; then
+    CLAUDE_VER="$cand"; STOCK_APK="$apk"; break
+  fi
+  warn "Claude $cand: no source could deliver it, trying the next candidate"
+done
+[ -n "$STOCK_APK" ] || die "no Claude version could be downloaded (tried: $(printf '%s' "$CLAUDE_CANDIDATES" | tr '\n' ' '))"
+log "building Claude $CLAUDE_VER"
 
 # ---- patch: one clone APK per CLAUDE_CLONES ---------------------------------
 KS_ALIAS="${VANTAGE_KEYSTORE_ALIAS:-vantage}"

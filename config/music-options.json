@@ -186,5 +186,18 @@
                 "enabled": true
             }
         }
+    },
+    {
+        "meta": {
+            "source": "vantage-patches.mpp"
+        },
+        "patches": {
+            "Keep playback on activity destroy": {
+                "enabled": true
+            },
+            "Clone with badge": {
+                "enabled": false
+            }
+        }
     }
 ]

@@ -50,13 +50,21 @@ and finds the last X build; see [Vantage X](#vantage-x-twitterx) below.
 |---|---|---|---|---|
 | Vantage | YouTube | `app.vantage.youtube` | Vantage | anddea dev, 23-patch curated (`--exclusive`) |
 | Vantage Alt | YouTube | `app.vantage.youtube.alt` | Vantage Alt | anddea dev, same 23-patch set as Vantage |
-| Vantage Music | YouTube Music | `app.vantage.youtube.music` | Vantage Music | anddea dev, default set |
+| Vantage Music | YouTube Music | `app.vantage.youtube.music` | Vantage Music | anddea dev, default set, plus `Keep playback on activity destroy` from [vantage-patches](https://github.com/pmaxhogan/vantage-patches) |
 | Vantage M | YouTube | `app.vantage.youtube.morphe` | Vantage M | Morphe official, default set |
 
 Vantage Alt is the same build as Vantage, identical patch set and options, with a
 different name, package, settings label, and icon (amber instead of cyan). The
 separate package lets you run two copies of patched YouTube side by side, for
 example with two accounts. Its config is `config/youtube-alt-options.json`.
+
+Vantage Music stacks one extra bundle on top of anddea:
+[vantage-patches](https://github.com/pmaxhogan/vantage-patches), which adds
+`Keep playback on activity destroy`. When Android reclaims memory it can destroy
+the Music screen while a track is playing in the background, and stock YouTube
+Music reacts by stopping the player and dropping its playback service, so the
+next memory sweep kills it. The patch keeps the player running through a
+system-initiated destroy; closing the app yourself still stops playback.
 
 Vantage M is a Morphe-based YouTube build with two gaps versus Vantage: no comment
 hiding and no Return YouTube Username. It has its own package so it can sit

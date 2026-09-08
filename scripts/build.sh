@@ -51,10 +51,14 @@ fi
 CLI_JAR="$TOOLS/morphe-cli-$MORPHE_CLI_VERSION-all.jar"
 ANDDEA_MPP="$TOOLS/anddea-$ANDDEA_VERSION.mpp"
 MORPHE_MPP="$TOOLS/morphe-$MORPHE_VERSION.mpp"
+# Stable file name on purpose: an options-file entry binds to a bundle by its
+# meta.source name, so a versioned name would silently detach the entry.
+VANTAGE_MPP="$TOOLS/vantage-patches.mpp"
 dl() { log "download $(basename "$2")"; curl -fsSL "$1" -o "$2" || die "download failed: $1"; }
 [ -f "$CLI_JAR" ]    || dl "$CLI_JAR_URL"    "$CLI_JAR"
 [ -f "$ANDDEA_MPP" ] || dl "$ANDDEA_MPP_URL" "$ANDDEA_MPP"
 [ -f "$MORPHE_MPP" ] || dl "$MORPHE_MPP_URL" "$MORPHE_MPP"
+rm -f "$VANTAGE_MPP"; dl "$VANTAGE_PATCHES_MPP_URL" "$VANTAGE_MPP"
 
 # ---- resolve target app version ------------------------------------------
 # Newest version in the top patch-count tier from `morphe-cli list-versions`,
@@ -83,8 +87,11 @@ build_variant() {
 
   "$VANTAGE_ROOT/scripts/download-apk.sh" "$pkg" "$appver" "$arch" "$stock"
 
+  # $2 may hold several bundles, space separated; each becomes its own --patches.
+  local -a pargs=()
+  local m; for m in $mpp; do pargs+=(--patches "$m"); done
   "$VANTAGE_ROOT/scripts/patch.sh" \
-    --jar "$CLI_JAR" --patches "$mpp" --options "$options" \
+    --jar "$CLI_JAR" "${pargs[@]}" --options "$options" \
     --keystore "$KEYSTORE" --apk "$stock" --out "$OUT/$outapk" \
     --result "$result" --log "$logf" --tmp "$tmp" \
     ${excl:+--exclusive}
@@ -113,7 +120,7 @@ build_variant "youtube-alt" "$ANDDEA_MPP" "$VANTAGE_ROOT/config/youtube-alt-opti
   "$A/youtube-nonnegotiable.txt" "$A/youtube-inert-allowlist.txt" \
   "$VANTAGE_ROOT/config/settings/vantage-youtube.json" "40"
 
-build_variant "music" "$ANDDEA_MPP" "$VANTAGE_ROOT/config/music-options.json" \
+build_variant "music" "$ANDDEA_MPP $VANTAGE_MPP" "$VANTAGE_ROOT/config/music-options.json" \
   "$MUSIC_PACKAGE" "$MUSIC_ARCH" "$MUSIC_VER" "vantage-music-${MUSIC_VER}.apk" \
   "app.vantage.youtube.music" "Vantage Music" "" "" \
   "$A/music-nonnegotiable.txt" "$A/music-inert-allowlist.txt" \
@@ -129,9 +136,11 @@ MANIFEST="$OUTDIR/built-versions.json"
 jq -n \
   --arg builtAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --arg anddea "$ANDDEA_VERSION" --arg morphe "$MORPHE_VERSION" \
+  --arg vantagePatches "$VANTAGE_PATCHES_VERSION" \
   --arg cli "$MORPHE_CLI_VERSION" \
   --arg yt "$YT_VER" --arg music "$MUSIC_VER" --arg mor_yt "$MORPHE_YT_VER" \
   '{builtAt:$builtAt, anddeaVersion:$anddea, morphePatchesVersion:$morphe,
+    vantagePatchesVersion:$vantagePatches,
     morpheCliVersion:$cli, youtubeVersion:$yt, musicVersion:$music,
     morpheYoutubeVersion:$mor_yt}' > "$MANIFEST"
 log "wrote manifest:"; cat "$MANIFEST"

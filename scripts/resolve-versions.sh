@@ -56,6 +56,14 @@ MORPHE_MPP_URL="$(jq -r '.assets[] | select(.name|endswith(".mpp")) | .browser_d
 [ -n "$MORPHE_MPP_URL" ] || die "no .mpp asset on morphe release $MORPHE_VERSION"
 log "  morphe = $MORPHE_VERSION"
 
+# ---- vantage-patches: latest release (stacked on anddea for Music) --------
+log "Resolving vantage-patches latest release from $VANTAGE_PATCHES_REPO ..."
+vp_json="$(gh api "repos/$VANTAGE_PATCHES_REPO/releases/latest")"
+VANTAGE_PATCHES_VERSION="$(jq -r '.tag_name' <<<"$vp_json" | sed 's/^v//')"
+VANTAGE_PATCHES_MPP_URL="$(jq -r '.assets[] | select(.name|endswith(".mpp")) | .browser_download_url' <<<"$vp_json" | head -1)"
+[ -n "$VANTAGE_PATCHES_MPP_URL" ] || die "no .mpp asset on vantage-patches release $VANTAGE_PATCHES_VERSION"
+log "  vantage-patches = $VANTAGE_PATCHES_VERSION"
+
 # ---- morphe-cli: pinned jar ----------------------------------------------
 log "Resolving pinned morphe-cli $MORPHE_CLI_VERSION jar from $MORPHE_CLI_REPO ..."
 cli_json="$(gh api "repos/$MORPHE_CLI_REPO/releases/tags/v$MORPHE_CLI_VERSION" 2>/dev/null \
@@ -65,7 +73,7 @@ CLI_JAR_URL="$(jq -r '.assets[] | select(.name|endswith("-all.jar")) | .browser_
 
 # ---- skip logic: compare with last build release's manifest ---------------
 NEEDS_BUILD="true"
-LAST_ANDDEA=""; LAST_MORPHE=""
+LAST_ANDDEA=""; LAST_MORPHE=""; LAST_VANTAGE=""
 if [ -n "$GH_REPO" ]; then
   log "Reading last build release manifest from $GH_REPO ..."
   # Newest release whose tag isn't the stock-cache tag and that has the manifest.
@@ -82,8 +90,10 @@ if [ -n "$GH_REPO" ]; then
          -O "$OUTFILE.manifest" --clobber 2>/dev/null; then
       LAST_ANDDEA="$(jq -r '.anddeaVersion // empty' "$OUTFILE.manifest")"
       LAST_MORPHE="$(jq -r '.morphePatchesVersion // empty' "$OUTFILE.manifest")"
-      log "  last release $last_tag built with anddea=$LAST_ANDDEA morphe=$LAST_MORPHE"
-      if [ "$LAST_ANDDEA" = "$ANDDEA_VERSION" ] && [ "$LAST_MORPHE" = "$MORPHE_VERSION" ]; then
+      LAST_VANTAGE="$(jq -r '.vantagePatchesVersion // empty' "$OUTFILE.manifest")"
+      log "  last release $last_tag built with anddea=$LAST_ANDDEA morphe=$LAST_MORPHE vantage-patches=$LAST_VANTAGE"
+      if [ "$LAST_ANDDEA" = "$ANDDEA_VERSION" ] && [ "$LAST_MORPHE" = "$MORPHE_VERSION" ] \
+         && [ "$LAST_VANTAGE" = "$VANTAGE_PATCHES_VERSION" ]; then
         NEEDS_BUILD="false"
       fi
     else
@@ -107,6 +117,8 @@ fi
   echo "ANDDEA_MPP_URL=$ANDDEA_MPP_URL"
   echo "MORPHE_VERSION=$MORPHE_VERSION"
   echo "MORPHE_MPP_URL=$MORPHE_MPP_URL"
+  echo "VANTAGE_PATCHES_VERSION=$VANTAGE_PATCHES_VERSION"
+  echo "VANTAGE_PATCHES_MPP_URL=$VANTAGE_PATCHES_MPP_URL"
   echo "MORPHE_CLI_VERSION=$MORPHE_CLI_VERSION"
   echo "CLI_JAR_URL=$CLI_JAR_URL"
   echo "NEEDS_BUILD=$NEEDS_BUILD"

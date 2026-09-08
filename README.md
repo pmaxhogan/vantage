@@ -195,8 +195,9 @@ newest non-`ripped` compatible build, currently X 12.19.1-release.0.
 Claude clones are renamed, recolored copies of the stock Claude Android app for
 several accounts signed in at once. Each clone gets its own package id, so it
 installs next to the original Claude app and next to the other clones rather
-than replacing anything. A small numbered pill in the corner of the launcher
-icon (and a recolored icon background) tells the clones apart at a glance.
+than replacing anything. Each clone shows its number in a small pill pinned to
+the top corner of every screen while you use it, and its launcher icon carries
+the same number on a recolored background, so the copies are easy to tell apart.
 
 | App | Package | Label | Badge |
 |---|---|---|---|

@@ -87,6 +87,19 @@ apps = [
         vantage_addl(r"vantage-x-.*-max2h\.apk")),
     app("app.revanced.android.gms", "MicroG-RE", "MorpheApp", MICROG_URL,
         microg_addl),
+    # Claude clones: several accounts signed in at once. Each is a renamed,
+    # recolored copy of Claude with its own package id, so they install side by
+    # side with the original app and with each other. They ship on their own
+    # "claude-v..." release cadence in the same repo (like Vantage X), so
+    # fallbackToOlderReleases walks back to the last claude-v release. The
+    # Obtainium app id is the clone's real package - not the original app's -
+    # since that's what has to match what's actually installed on the device.
+    app("com.anthropic.claude.two", "Claude 2", "pmaxhogan", VANTAGE_URL,
+        vantage_addl(r"claude-2-.*\.apk")),
+    app("com.anthropic.claude.three", "Claude 3", "pmaxhogan", VANTAGE_URL,
+        vantage_addl(r"claude-3-.*\.apk")),
+    app("com.anthropic.claude.four", "Claude 4", "pmaxhogan", VANTAGE_URL,
+        vantage_addl(r"claude-4-.*\.apk")),
 ]
 
 config = {"apps": apps}

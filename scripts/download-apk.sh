@@ -26,6 +26,13 @@
 #
 # Usage: download-apk.sh <package> <version> <arch> <out.apk>
 #   arch: "universal" (YouTube) or "arm64-v8a" (YouTube Music has no universal APK)
+#
+# A fourth container, "bundle" (Claude), covers an app with no single base APK
+# and no genuine APKM mirror either: sources return an XAPK/APKS zip of splits,
+# every required split (base + arch + "en" + "xxhdpi") is apksigner-verified
+# individually against config/expected-signatures.txt, and only THEN are the
+# four merged into one APK with APKEditor ($APKEDITOR_JAR, set by
+# build-claude.sh) - see verify_bundle() below.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 load_build_env
@@ -167,8 +174,37 @@ src_apkcombo() {
   case "$PKG" in
     com.google.android.youtube)            org=youtube;       repo="youtube/com.google.android.youtube" ;;
     com.google.android.apps.youtube.music) org=youtube-music; repo="youtube-music/com.google.android.apps.youtube.music" ;;
+    com.anthropic.claude)                  org=claude;        repo="claude/com.anthropic.claude" ;;
     *) warn "  apkcombo: no slug mapping for $PKG"; rm -rf "$tmp"; return 1 ;;
   esac
+
+  # Split apps (Claude, CONTAINER=bundle): request the XAPK page instead of the
+  # single-APK one below. Confirmed live (2026-09-08): the download anchor is
+  # apkcombo's own /r2?u=<signed-R2-url> proxy - already a complete link, no
+  # checkin token needed. The zip carries every split; verify_bundle() (the
+  # bundle gate, see the end of this file) extracts only the four splits it
+  # needs and checks their signatures before anything is trusted.
+  if [ "$CONTAINER" = "bundle" ]; then
+    local dl_page="https://apkcombo.app/${repo%%/*}/${repo#*/}/download/phone-${VER}-xapk"
+    log "  apkcombo: fetching $dl_page (bundle)"
+    if ! fetch -H 'Referer: https://apkcombo.app/' "$dl_page" -o "$tmp/page.html"; then
+      warn "  apkcombo: download page fetch failed"; rm -rf "$tmp"; return 1
+    fi
+    local anchor href
+    anchor="$(grep -oE '<a [^>]*variant[^>]*>' "$tmp/page.html" | grep -F '/r2?u=' | head -1 || true)"
+    href="$(printf '%s' "$anchor" | grep -oE 'href="[^"]+"' | sed -E 's/^href="([^"]+)"$/\1/' | head -1 || true)"
+    if [ -z "$href" ]; then
+      warn "  apkcombo: no bundle variant href on the page (JS-only render or layout change)"; rm -rf "$tmp"; return 1
+    fi
+    href="$(printf '%s' "$href" | sed 's/&amp;/\&/g')"
+    local url="https://apkcombo.app${href}"
+    log "  apkcombo: downloading $url"
+    if ! fetch -H "Referer: $dl_page" "$url" -o "$out"; then
+      warn "  apkcombo: final download failed"; rm -rf "$tmp"; return 1
+    fi
+    rm -rf "$tmp"; return 0
+  fi
+
   local dl_page="https://apkcombo.app/${repo%%/*}/${repo#*/}/download/phone-${VER}-apk"
   log "  apkcombo: fetching $dl_page (arch=$ARCH)"
   if ! fetch -H 'Referer: https://apkcombo.app/' "$dl_page" -o "$tmp/page.html"; then
@@ -256,6 +292,17 @@ src_apkmirror() { py_source apkmirror-dl.py "$1"; }
 # scripts/apkpure-dl.py. (.com Cloudflare-blocks even curl_cffi; .net serves.)
 src_apkpure() { py_source apkpure-dl.py "$1"; }
 
+# --- Uptodown (via curl_cffi) -----------------------------------------------
+# Second source for Claude (fallback behind apkcombo). scripts/uptodown-dl.py
+# walks the app's /versions list to the matching numeric file id, then the
+# download page. Uptodown's real file link only comes back from an ajax
+# endpoint that requires a SOLVED Cloudflare Turnstile token (confirmed by
+# reading its own download.js) - not something this resolver attempts to pass,
+# so in practice it fails and falls through to whatever's next. It still tries
+# an ungated data-url/data-url-ext attribute first, in case a future layout (or
+# a different app/flow) exposes one without Turnstile.
+src_uptodown() { py_source uptodown-dl.py "$1"; }
+
 # ===========================================================================
 # verify_apkm() - the gate for a split APKM bundle (X/Twitter). An APKM is a zip
 # of per-split *.apk files (base + config.<abi>/<dpi>/<lang>) plus metadata.
@@ -334,22 +381,143 @@ verify_apkm() {
   return 0
 }
 
+# ===========================================================================
+# verify_bundle() - the gate for Claude's split bundle (XAPK/APKS zip). Unlike
+# verify_apkm() (X's format, patched directly), morphe-cli needs ONE APK to
+# patch, so this gate goes one step further than the others:
+#   1. valid zip (PK magic + integrity)
+#   2. locate the four entries we actually need: base + arch config + "en" +
+#      "xxhdpi" (a source that doesn't carry one of these fails resolve, not
+#      verify - it's simply missing what we need)
+#   3. apksigner-verify EVERY one of those four against an expected $PKG cert
+#      (same rule as verify_apkm - nothing gets merged unless it's independently
+#      proven genuine first)
+#   4. the base split's package + versionName must match $PKG/$VER
+#   5. ONLY THEN merge the four verified splits into one APK with APKEditor
+#      ($APKEDITOR_JAR, set by build-claude.sh) and overwrite $1 with it, so the
+#      caller's normal `cp "$cand" "$OUT"` picks up the merged result unchanged.
+# Merging recompiles resources.arsc and the manifest, which invalidates the
+# original signature block - expected, not a red flag. These five checks are
+# the ENTIRE trust boundary for Claude; nothing downstream re-verifies a
+# signature (morphe-cli re-signs with the Vantage key when it patches).
+# ===========================================================================
+verify_bundle() {
+  local zipf="$1" aapt apksigner
+  if ! apk_has_pk_magic "$zipf"; then
+    warn "  reject: not a valid bundle (no PK zip magic - likely HTML/challenge/turnstile page)"; return 1
+  fi
+  command -v unzip >/dev/null 2>&1 || { warn "  reject: unzip required to verify a bundle"; return 1; }
+  if ! unzip -qt "$zipf" >/dev/null 2>&1; then
+    warn "  reject: bundle zip integrity check failed (truncated/corrupt download)"; return 1
+  fi
+
+  : "${APKEDITOR_JAR:?APKEDITOR_JAR must be set (path to the APKEditor jar) to verify/merge a Claude bundle}"
+  [ -f "$APKEDITOR_JAR" ] || { warn "  reject: APKEDITOR_JAR not found: $APKEDITOR_JAR"; return 1; }
+  command -v java >/dev/null 2>&1 || { warn "  reject: java not found - cannot merge bundle"; return 1; }
+
+  aapt="$(find_sdk_tool aapt || find_sdk_tool aapt.exe || true)"
+  apksigner="$(find_sdk_tool apksigner || find_sdk_tool apksigner.bat || true)"
+  [ -n "$aapt" ]      || { warn "  reject: aapt not found - cannot verify bundle (Android SDK required)"; return 1; }
+  [ -n "$apksigner" ] || { warn "  reject: apksigner not found - cannot verify bundle (Android SDK required)"; return 1; }
+  local expected; expected="$(expected_sigs_for "$PKG")"
+  if [ -z "$expected" ]; then
+    warn "  reject: no expected signatures for '$PKG' in $SIG_FILE - refusing an unpinned package"; return 1
+  fi
+
+  # Entry names vary a little by source (apkcombo names the base
+  # "<pkg>.apk"; some sources use "base.apk"). Arch is written with underscores
+  # in the zip (arm64-v8a -> arm64_v8a), optionally prefixed "config.".
+  local arch_us="${ARCH//-/_}"
+  local names; names="$(unzip -Z1 "$zipf" 2>/dev/null || true)"
+  local base_entry arch_entry lang_entry density_entry
+  base_entry="$(grep -iE "^(${PKG//./\\.}|base)\.apk\$" <<<"$names" | head -1)"
+  arch_entry="$(grep -iE "^(config\.)?${arch_us}\.apk\$" <<<"$names" | head -1)"
+  lang_entry="$(grep -iE '^(config\.)?en\.apk$' <<<"$names" | head -1)"
+  density_entry="$(grep -iE '^(config\.)?xxhdpi\.apk$' <<<"$names" | head -1)"
+  if [ -z "$base_entry" ] || [ -z "$arch_entry" ] || [ -z "$lang_entry" ] || [ -z "$density_entry" ]; then
+    warn "  reject: bundle missing a required split (base='$base_entry' arch='$arch_entry' en='$lang_entry' xxhdpi='$density_entry')"
+    return 1
+  fi
+
+  local xd; xd="$(mktemp -d)"
+  if ! unzip -qo "$zipf" "$base_entry" "$arch_entry" "$lang_entry" "$density_entry" -d "$xd" 2>/dev/null; then
+    warn "  reject: could not extract the required splits from the bundle"; rm -rf "$xd"; return 1
+  fi
+
+  local f certs rc got g matched badging pkg_got ver_got
+  for f in "$xd/$base_entry" "$xd/$arch_entry" "$xd/$lang_entry" "$xd/$density_entry"; do
+    certs="$("$apksigner" verify --print-certs "$f" 2>/dev/null)"; rc=$?
+    if [ "$rc" -ne 0 ]; then
+      warn "  reject: split $(basename "$f") failed apksigner verification (unsigned/tampered)"; rm -rf "$xd"; return 1
+    fi
+    got="$(grep -i 'certificate SHA-256 digest' <<<"$certs" | awk '{print tolower($NF)}' | sort -u)"
+    matched=""
+    while IFS= read -r g; do
+      [ -n "$g" ] || continue
+      if grep -qxF "$g" <<<"$expected"; then matched="$g"; break; fi
+    done <<<"$got"
+    if [ -z "$matched" ]; then
+      warn "  reject: split $(basename "$f") NOT signed by an expected $PKG cert (got: $(tr '\n' ' ' <<<"$got"))"; rm -rf "$xd"; return 1
+    fi
+  done
+
+  badging="$("$aapt" dump badging "$xd/$base_entry" 2>/dev/null || true)"
+  pkg_got="$(grep -oE "^package: name='[^']*'" <<<"$badging" | sed -E "s/.*name='([^']*)'.*/\1/" | head -1)"
+  ver_got="$(grep -oE "versionName='[^']*'"      <<<"$badging" | sed -E "s/.*versionName='([^']*)'.*/\1/" | head -1)"
+  if [ "$pkg_got" != "$PKG" ] || [ "$ver_got" != "$VER" ]; then
+    warn "  reject: base split package/version mismatch - expected $PKG/$VER got ${pkg_got:-<none>}/${ver_got:-<none>}"
+    rm -rf "$xd"; return 1
+  fi
+  log "  verify OK: bundle $PKG $VER, all 4 required splits signed by an expected cert"
+
+  # All four verified - merge into one APK. APKEditor merges every *.apk it
+  # finds in the input directory, which is exactly these four ($xd holds
+  # nothing else - we only extracted these entries).
+  local merged="$xd/merged.apk"
+  if ! java -jar "$APKEDITOR_JAR" m -i "$xd" -o "$merged" -f >/dev/null 2>&1; then
+    warn "  reject: APKEditor merge failed"; rm -rf "$xd"; return 1
+  fi
+  [ -f "$merged" ] || { warn "  reject: APKEditor reported success but produced no merged APK"; rm -rf "$xd"; return 1; }
+
+  # A post-merge apksigner check would always fail (merging invalidates the
+  # signature block) - that's expected, not a red flag; the four pre-merge
+  # checks above are the trust boundary. Confirm the merge preserved identity.
+  badging="$("$aapt" dump badging "$merged" 2>/dev/null || true)"
+  pkg_got="$(grep -oE "^package: name='[^']*'" <<<"$badging" | sed -E "s/.*name='([^']*)'.*/\1/" | head -1)"
+  ver_got="$(grep -oE "versionName='[^']*'"      <<<"$badging" | sed -E "s/.*versionName='([^']*)'.*/\1/" | head -1)"
+  if [ "$pkg_got" != "$PKG" ] || [ "$ver_got" != "$VER" ]; then
+    warn "  reject: merged APK package/version mismatch - expected $PKG/$VER got ${pkg_got:-<none>}/${ver_got:-<none>} (APKEditor merge altered identity)"
+    rm -rf "$xd"; return 1
+  fi
+  cp "$merged" "$zipf"
+  rm -rf "$xd"
+  log "  merge OK: $PKG $VER -> single APK ($(du -h "$zipf" | cut -f1))"
+  return 0
+}
+
 # Dispatch to the right gate for the requested container ($CONTAINER, set by main).
 run_gate() {
   case "$CONTAINER" in
-    apkm) verify_apkm "$1";;
-    *)    verify "$1";;
+    apkm)    verify_apkm "$1";;
+    bundle)  verify_bundle "$1";;
+    *)       verify "$1";;
   esac
 }
 
 main() {
   PKG="${1:?package}"; VER="${2:?version}"; ARCH="${3:?arch}"; OUT="${4:?out path}"
-  # $5 = container: "apk" (single base APK, YouTube/Music) or "apkm" (split
-  # bundle, X/Twitter - morphe patches it directly). Sets the gate and the
-  # cache-asset extension so an .apk and an .apkm never collide in the cache.
+  # $5 = container: "apk" (single base APK, YouTube/Music), "apkm" (split
+  # bundle, X/Twitter - morphe patches it directly), or "bundle" (split
+  # bundle, Claude - merged into one APK by verify_bundle() before morphe ever
+  # sees it). Sets the gate and the cache-asset extension so different
+  # containers never collide in the cache.
   CONTAINER="${5:-apk}"
-  case "$CONTAINER" in apk|apkm) ;; *) die "unknown container '$CONTAINER' (want apk|apkm)";; esac
-  CACHE_ASSET="${PKG}-${VER}.${CONTAINER}"
+  case "$CONTAINER" in apk|apkm|bundle) ;; *) die "unknown container '$CONTAINER' (want apk|apkm|bundle)";; esac
+  case "$CONTAINER" in
+    apk)    CACHE_ASSET="${PKG}-${VER}.apk" ;;
+    apkm)   CACHE_ASSET="${PKG}-${VER}.apkm" ;;
+    bundle) CACHE_ASSET="${PKG}-${VER}.merged.apk" ;;
+  esac
   GH_REPO="${GITHUB_REPOSITORY:-${VANTAGE_REPO:-}}"
   mkdir -p "$(dirname "$OUT")"
 
@@ -370,11 +538,14 @@ main() {
 
   # -------------------------------------------------------------------------
   # 2. Ordered download sources, each behind the container's gate. X uses its
-  #    own source list (only APKMirror serves the genuine APKM).
+  #    own source list (only APKMirror serves the genuine APKM); Claude uses
+  #    its own too (APKMirror bot-blocks this app's pages entirely).
   # -------------------------------------------------------------------------
   local sources
   if [ "$CONTAINER" = "apkm" ]; then
     sources="${X_DL_SOURCES:-apkmirror}"
+  elif [ "$CONTAINER" = "bundle" ]; then
+    sources="${CLAUDE_DL_SOURCES:-apkcombo uptodown}"
   else
     sources="${DL_SOURCES:-apkmirror apkpure apkcombo aptoide}"
   fi

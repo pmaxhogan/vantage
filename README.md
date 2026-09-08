@@ -8,24 +8,28 @@ a stable key, and publishes them as GitHub Releases. [Obtainium](https://github.
 installs them and keeps them updated. The YouTube variants need
 [MicroG-RE](https://github.com/MorpheApp/MicroG-RE) on the phone, an unrooted
 replacement for Google Play Services, and the bundled config installs it for you.
+It also builds Claude clones - renamed, recolored copies of the Claude Android
+app for several accounts signed in at once (see [Claude clones](#claude-clones)).
 
 ## Install
 
-Each release ships an `obtainium-config.json` that sets up five apps in one
-import: MicroG-RE plus the four Vantage apps (Vantage, Vantage Alt, Vantage
-Music, Vantage X), each already configured with the right APK filter and update
-settings.
+Each release ships an `obtainium-config.json` that sets up eight apps in one
+import: MicroG-RE, the four Vantage apps (Vantage, Vantage Alt, Vantage Music,
+Vantage X), and the three Claude clones (Claude 2, Claude 3, Claude 4), each
+already configured with the right APK filter and update settings.
 
 1. Install [Obtainium](https://github.com/ImranR98/Obtainium/releases).
 2. Download `obtainium-config.json` from the
    [latest release](https://github.com/pmaxhogan/vantage/releases/latest).
 3. In Obtainium, open the menu, choose Import/Export, then Import from file, and
-   pick it. All five apps appear.
+   pick it. All eight apps appear.
 4. Install MicroG-RE first, since the YouTube-family Vantage apps need it at
    runtime. Then install whichever Vantage apps you want. Vantage X needs no
-   MicroG-RE, but it does replace a stock X install (see below).
+   MicroG-RE, but it does replace a stock X install (see below). The Claude
+   clones need no MicroG-RE either, and the first install of each is manual
+   (see [Claude clones](#claude-clones)).
 
-Obtainium auto-updates all five as new releases land. The Vantage apps track the
+Obtainium auto-updates all eight as new releases land. The Vantage apps track the
 release date and MicroG-RE tracks its version. The settings you'd otherwise have
 to toggle by hand are baked into the patches, so a fresh install already hides
 Shorts, comments, and community posts, opens on Subscriptions, and has DeArrow
@@ -186,6 +190,45 @@ debug-only `Browse tweet object`). Every X patch is listed explicitly in the opt
 files, so flipping any is a one-line change. The target version auto-resolves to the
 newest non-`ripped` compatible build, currently X 12.19.1-release.0.
 
+## Claude clones
+
+Claude clones are renamed, recolored copies of the stock Claude Android app for
+several accounts signed in at once. Each clone gets its own package id, so it
+installs next to the original Claude app and next to the other clones rather
+than replacing anything. A small numbered pill in the corner of the launcher
+icon (and a recolored icon background) tells the clones apart at a glance.
+
+| App | Package | Label | Badge |
+|---|---|---|---|
+| Claude 2 | `com.anthropic.claude.two` | Claude 2 | 2 |
+| Claude 3 | `com.anthropic.claude.three` | Claude 3 | 3 |
+| Claude 4 | `com.anthropic.claude.four` | Claude 4 | 4 |
+
+Installing:
+
+1. Download the clone's APK from the latest `claude-v...` release (see the
+   table above for the file name pattern, `claude-<N>-<ver>.apk`) and install it
+   like any sideloaded app.
+2. If an earlier hand-built copy with the same name is already installed,
+   uninstall it first - the signing key is different, so Android refuses to
+   install over the mismatch.
+3. After that first manual install, Obtainium tracks and updates the clone like
+   any other app in the bundled config (see [Install](#install) above).
+4. No MicroG-RE and no other setup is needed; the clone behaves exactly like a
+   normal Claude install once it's on the device.
+
+Like Vantage X, Claude clones build on their own cadence (their own workflow,
+`build-claude.yml`) and publish their own release tagged `claude-v...` rather
+than riding the YouTube release, since Claude ships new builds roughly daily -
+far more often than the YouTube-family patches move. The build downloads
+Claude's split bundle (base + arm64-v8a + language + density APKs, since the
+app has no single universal APK) from apkcombo or Uptodown, verifies every
+split's signing cert individually, merges them into one APK with
+[APKEditor](https://github.com/REAndroid/APKEditor), then patches with the
+`Clone with badge` patch from a separate bundle,
+[vantage-patches](https://github.com/pmaxhogan/vantage-patches), which sets the
+package name, label, badge number, and icon color per clone.
+
 ## Enabled patches (Vantage / Vantage Alt)
 
 These 23 patches are the curated set applied with `--exclusive`, so only they run.
@@ -315,6 +358,21 @@ build's manifest. The shared scripts (`lib.sh`, `download-apk.sh`, `patch.sh`,
 `assert.sh`) are reused; only the orchestrator and options differ. The fork's own
 `sync-upstream.yml` and `build-mpp.yml` keep its `.mpp` current with crimera/piko.
 
+Claude clones build separately too. `.github/workflows/build-claude.yml` runs
+`scripts/build-claude.sh` on its own daily schedule. Since Claude's package has
+no version gate in the patch bundle, the target version is resolved from
+whichever download source answers first (not `morphe-cli list-versions`, which
+is built for a curated compatibility tier); the build skips early when both that
+version and the vantage-patches bundle are unchanged (state is the newest
+`claude-v...` release's `built-versions-claude.json`). It downloads Claude's
+split bundle (`download-apk.sh`'s `bundle` container - see
+[Stock-APK download](#stock-apk-download)), merges it with APKEditor, patches
+once per clone with vantage-patches' `Clone with badge`, asserts each APK
+(package, label, the original app's provider authority absent, patch result),
+and publishes a release tagged `claude-v<ver>-vp<ver>` (with `--latest=false`,
+same reason as X). `lib.sh`, `download-apk.sh`, and `assert.sh` are shared with
+the other builds; `build-claude.sh` is its own orchestrator.
+
 ### CI guards
 
 morphe-cli only warns on a renamed or removed patch, and it counts a
@@ -331,7 +389,11 @@ independently:
 - aapt package name and label, an APK size floor, and zip integrity
 
 The names, counts, and allowlists live in `config/assertions/`. Edit those, not
-the script.
+the script. Claude clones use a separate `assert.sh claude-clone` subcommand
+(same failedPatches/cert/size/zip checks via `aapt2`, plus the check that
+matters most there: the original app's provider authority - `com.anthropic.claude.provider` -
+must be nowhere in the manifest, or the clone would collide with the original
+app or another clone at install time instead of sitting beside them).
 
 ## GitHub secrets
 
@@ -369,11 +431,12 @@ back to `stock-cache`, so the cache maintains itself. `build.yml` installs
 (see `config/build.env`).
 
 Assets are named `<package>-<version>.<container>`, where the container is `apk`
-for YouTube/Music and `apkm` for X (a split bundle). X is fetched only from
-APKMirror, and its gate extracts every nested split and checks each one's signing
-cert, so a mirror that re-signs the bundle (APKPure serves X under its own key) is
-rejected. You only need to seed the cache by hand to bootstrap a package no source
-carries yet:
+for YouTube/Music, `apkm` for X (a split bundle patched directly), and
+`merged.apk` for Claude (a split bundle merged into one APK before caching - see
+below). X is fetched only from APKMirror, and its gate extracts every nested
+split and checks each one's signing cert, so a mirror that re-signs the bundle
+(APKPure serves X under its own key) is rejected. You only need to seed the
+cache by hand to bootstrap a package no source carries yet:
 
 ```bash
 gh release create stock-cache -R <owner>/vantage --prerelease \
@@ -384,33 +447,53 @@ gh release upload stock-cache -R <owner>/vantage \
   com.twitter.android-<ver>.apkm
 ```
 
+Claude (`com.anthropic.claude`) ships no single universal APK either, but unlike
+X, no mirror serves it as a genuine APKM - APKMirror bot-blocks this app's
+pages entirely (not just the usual Cloudflare TLS check most other apps get),
+so it isn't in Claude's source list at all. Instead `apkcombo` and `uptodown`
+serve an XAPK/APKS zip of splits (base + arch + language + density), and
+`download-apk.sh`'s `bundle` container (`verify_bundle()`) extracts just the
+four splits the build needs (base + arm64-v8a + `en` + `xxhdpi`), verifies each
+one's signing cert individually, and only then merges them into one APK with
+[APKEditor](https://github.com/REAndroid/APKEditor) (`scripts/build-claude.sh`
+downloads and sha256-pins the jar) - merging first would mean trusting content
+nobody had checked yet. In practice `apkcombo` is the source that works: its
+download page hands back a signed proxy link with no further gate. `uptodown`
+(`scripts/uptodown-dl.py`) is wired up as a second source, but its real file
+link is gated behind a live Cloudflare Turnstile challenge, which no amount of
+TLS impersonation gets through - see the script's docstring. It's kept as a
+fallback in case that ever changes, not because it works today.
+
 ## Layout
 
 ```
-.github/workflows/build.yml   cron + dispatch(force); Java 21; runs build.sh; one Release
-.github/workflows/build-x.yml cron + dispatch(force); runs build-x.sh; X release (x-v*)
+.github/workflows/build.yml        cron + dispatch(force); Java 21; runs build.sh; one Release
+.github/workflows/build-x.yml      cron + dispatch(force); runs build-x.sh; X release (x-v*)
+.github/workflows/build-claude.yml cron + dispatch(force); runs build-claude.sh; Claude release (claude-v*)
 scripts/
   lib.sh                      shared helpers (logging, keystore, SDK-tool finder, sha256, versions)
   resolve-versions.sh         upstream versions + skip decision (state = latest Release)
-  download-apk.sh             stock-cache-first, multi-source + signature verify gate (apk & apkm)
+  download-apk.sh             stock-cache-first, multi-source + signature verify gate (apk, apkm & bundle)
   apkmirror-dl.py             APKMirror resolver (curl_cffi; picks the APK or BUNDLE variant)
   apkpure-dl.py               APKPure resolver (curl_cffi; version-pinned base APK)
+  uptodown-dl.py              Uptodown resolver (curl_cffi; Claude fallback, Turnstile-gated in practice)
   patch.sh                    one morphe-cli patch pass; repeatable --patches (X stacks two bundles)
-  assert.sh                   keystore pre-flight + post-build guards (nonneg/forbidden/inert)
+  assert.sh                   keystore pre-flight + post-build guards (nonneg/forbidden/inert/claude-clone)
   build.sh                    YouTube-family orchestrator (also runnable locally)
   build-x.sh                  X (Twitter) orchestrator, isolated; its own x-v* release
+  build-claude.sh             Claude clones orchestrator, isolated; its own claude-v* release
   gen-obtainium-config.py     regenerates obtainium-config.json (edit here, not the JSON)
 config/
   youtube-options.json        anddea YouTube, 23 enabled
   music-options.json          anddea YouTube Music, default set + branding
   morphe-youtube-options.json Morphe YouTube, default set + Custom branding + package
   x-options-max*.json         piko X, four files differing only in the daily-limit ceiling
-  build.env                   pinned morphe-cli, channel selectors, packages, version pins
+  build.env                   pinned morphe-cli/APKEditor, channel selectors, packages, version pins, Claude clone config
   expected-signatures.txt     genuine vendor signing certs the stock download gate accepts
   assertions/*.txt            non-negotiable names, forbidden names, inert allowlists, expected count
   icon/                       custom icon sets per variant
   settings/                   golden RVX settings (optional reset files)
-obtainium-config.json         one-tap Obtainium onboarding (MicroG-RE + 4 Vantage apps)
+obtainium-config.json         one-tap Obtainium onboarding (MicroG-RE + 4 Vantage apps + 3 Claude clones)
 keystore/                     README only; the key lives in the VANTAGE_KEYSTORE_B64 secret
 ```
 
@@ -450,3 +533,10 @@ bash scripts/build.sh --force                 # build + stage in build/release
   YouTube variants have a fallback. Its pinned signing cert also means an X
   signing-key rotation fails the gate until `config/expected-signatures.txt` is
   updated.
+- Claude clones are effectively single-source too, in practice: `apkcombo` is
+  the source that works today, and `uptodown` is a real fallback in code but
+  currently fails every time because Uptodown gates its actual file link behind
+  a live Cloudflare Turnstile challenge that no TLS-impersonation trick gets
+  past (see [Stock-APK download](#stock-apk-download)). An apkcombo layout
+  change or outage stops Claude builds until a working third source is added.
+  Its pinned signing cert has the same rotation caveat as X's.

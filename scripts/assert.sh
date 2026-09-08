@@ -228,10 +228,121 @@ PY
   log "=== [$NAME] ALL ASSERTIONS PASSED ==="
 }
 
+# ============================== claude-clone ================================
+# Checks specific to a Claude clone build (build-claude.sh): package name,
+# label, and - the check that matters most here - that the ORIGINAL app's
+# provider authority is nowhere in the manifest. morphe-cli's rename patch is
+# supposed to rewrite every provider authority (FileProvider, androidx-startup,
+# MLKit, Sentry, ...) to the clone's own package, not just the app id; if it
+# missed one, the clone collides with the stock app (or another clone) at
+# install time instead of sitting beside it. Uses aapt2 (not aapt) because only
+# aapt2's xmltree dump exposes provider authorities at all - aapt's badging
+# output doesn't mention them.
+assert_claude_clone() {
+  local NAME="" APK="" PKG="" LABEL="" FORBIDDEN_AUTHORITY="" MINMB="20" RESULT="" PATCHNAME=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --variant) NAME="$2"; shift 2;;
+      --apk) APK="$2"; shift 2;;
+      --package) PKG="$2"; shift 2;;
+      --label) LABEL="$2"; shift 2;;
+      --forbidden-authority) FORBIDDEN_AUTHORITY="$2"; shift 2;;
+      --result) RESULT="$2"; shift 2;;
+      --patch-name) PATCHNAME="$2"; shift 2;;
+      --min-size-mb) MINMB="$2"; shift 2;;
+      *) die "unknown arg: $1";;
+    esac
+  done
+  for v in NAME APK PKG LABEL FORBIDDEN_AUTHORITY; do
+    [ -n "${!v}" ] || die "assert claude-clone: missing --${v,,}"
+  done
+  [ -f "$APK" ] || die "not found: $APK"
+  local fail=0
+  log "=== asserting claude clone: $NAME ==="
+
+  # --- patch result (only if --result/--patch-name given) -------------------
+  # Same rule as assert_variant: morphe-cli's exit code alone is not trusted.
+  if [ -n "$RESULT" ] && [ -n "$PATCHNAME" ]; then
+    [ -f "$RESULT" ] || die "[$NAME] not found: $RESULT"
+    local nfailed; nfailed="$(jq '.failedPatches | length' "$RESULT")"
+    if [ "$nfailed" -ne 0 ]; then
+      warn "[$NAME] failedPatches is non-empty ($nfailed):"; jq -r '.failedPatches[].name' "$RESULT" >&2; fail=1
+    else log "[$NAME] failedPatches == [] OK"; fi
+    if jq -r '.appliedPatches[].name' "$RESULT" | grep -Fxq "$PATCHNAME"; then
+      log "[$NAME] patch '$PATCHNAME' applied OK"
+    else
+      warn "[$NAME] patch '$PATCHNAME' MISSING from appliedPatches (renamed upstream, or dropped by the bundle?)"; fail=1
+    fi
+  fi
+
+  local aapt2; aapt2="$(find_sdk_tool aapt2 || find_sdk_tool aapt2.exe || true)"
+  [ -n "$aapt2" ] || die "[$NAME] aapt2 not found (Android SDK required)"
+
+  # --- package + label (aapt2 dump badging) ---------------------------------
+  local badging pkg_got label_got
+  badging="$("$aapt2" dump badging "$APK" 2>/dev/null)"
+  pkg_got="$(grep -oE "^package: name='[^']*'" <<<"$badging" | sed -E "s/.*name='([^']*)'.*/\1/")"
+  label_got="$(grep -oE "^application-label:'[^']*'" <<<"$badging" | sed -E "s/.*:'([^']*)'.*/\1/")"
+  [ "$pkg_got" = "$PKG" ] && log "[$NAME] package '$pkg_got' OK" \
+    || { warn "[$NAME] package mismatch expected='$PKG' got='$pkg_got'"; fail=1; }
+  [ "$label_got" = "$LABEL" ] && log "[$NAME] label '$label_got' OK" \
+    || { warn "[$NAME] label mismatch expected='$LABEL' got='$label_got'"; fail=1; }
+
+  # --- forbidden provider authority (aapt2 dump xmltree) --------------------
+  local manifest_xml
+  manifest_xml="$("$aapt2" dump xmltree --file AndroidManifest.xml "$APK" 2>/dev/null || true)"
+  if [ -z "$manifest_xml" ]; then
+    warn "[$NAME] could not dump AndroidManifest.xml via aapt2 - cannot check authorities"; fail=1
+  elif grep -qF "authorities=\"$FORBIDDEN_AUTHORITY\"" <<<"$manifest_xml"; then
+    warn "[$NAME] FORBIDDEN authority '$FORBIDDEN_AUTHORITY' still present - clone was not fully rebranded, it will collide with the original app (or another clone) at install time"
+    fail=1
+  else
+    log "[$NAME] forbidden authority absent OK: '$FORBIDDEN_AUTHORITY'"
+  fi
+
+  # --- signing cert fingerprint pin (same Vantage key across every build) ---
+  local apksigner; apksigner="$(find_sdk_tool apksigner || find_sdk_tool apksigner.bat || true)"
+  if [ -z "$apksigner" ]; then
+    warn "[$NAME] apksigner not found - SKIPPING cert fingerprint check (Android SDK expected in CI)"
+  else
+    local cert; cert="$("$apksigner" verify --print-certs "$APK" 2>/dev/null \
+      | grep -i 'certificate SHA-256 digest' | head -1 | awk '{print $NF}')"
+    [ -n "$cert" ] || { warn "[$NAME] could not read signing cert"; fail=1; }
+    if [ -n "${VANTAGE_CERT_SHA256:-}" ]; then
+      if [ "$cert" = "$VANTAGE_CERT_SHA256" ]; then log "[$NAME] cert fingerprint pinned OK"
+      else warn "[$NAME] cert SHA-256 mismatch expected=$VANTAGE_CERT_SHA256 got=$cert (APK NOT signed by the committed key!)"; fail=1; fi
+    else
+      warn "[$NAME] VANTAGE_CERT_SHA256 unset - cannot pin cert (got $cert). CI MUST set this secret."
+    fi
+  fi
+
+  # --- size threshold + zip integrity ---------------------------------------
+  local bytes mb; bytes="$(stat -c%s "$APK" 2>/dev/null || stat -f%z "$APK")"; mb=$((bytes/1024/1024))
+  if [ "$mb" -lt "$MINMB" ]; then warn "[$NAME] APK too small: ${mb}MB < ${MINMB}MB"; fail=1
+  else log "[$NAME] size ${mb}MB OK"; fi
+  if command -v python3 >/dev/null 2>&1; then
+    if python3 - "$APK" <<'PY' >/dev/null 2>&1
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z:
+    bad = z.testzip()
+sys.exit(1 if bad else 0)
+PY
+    then log "[$NAME] zip integrity OK (python zipfile)"
+    else warn "[$NAME] zip integrity check FAILED (python zipfile)"; fail=1; fi
+  elif command -v unzip >/dev/null 2>&1; then
+    unzip -qt "$APK" >/dev/null 2>&1 && log "[$NAME] zip integrity OK" \
+      || { warn "[$NAME] zip integrity check FAILED"; fail=1; }
+  fi
+
+  if [ "$fail" -ne 0 ]; then die "[$NAME] ASSERTIONS FAILED - build must not be released"; fi
+  log "=== [$NAME] ALL ASSERTIONS PASSED ==="
+}
+
 # ================================ dispatch =================================
-sub="${1:?subcommand: keystore-preflight | variant}"; shift || true
+sub="${1:?subcommand: keystore-preflight | variant | claude-clone}"; shift || true
 case "$sub" in
   keystore-preflight) keystore_preflight "$@";;
   variant)            assert_variant "$@";;
+  claude-clone)       assert_claude_clone "$@";;
   *) die "unknown subcommand: $sub";;
 esac

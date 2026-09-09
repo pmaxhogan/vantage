@@ -64,7 +64,9 @@ Vantage Music stacks one extra bundle on top of anddea:
 the Music screen while a track is playing in the background, and stock YouTube
 Music reacts by stopping the player and dropping its playback service, so the
 next memory sweep kills it. The patch keeps the player running through a
-system-initiated destroy; closing the app yourself still stops playback.
+system-initiated destroy; closing the app yourself still stops playback. The
+patch is currently switched off in `config/music-options.json` while a crash
+seen on streamed playback is investigated.
 
 Vantage M is a Morphe-based YouTube build with two gaps versus Vantage: no comment
 hiding and no Return YouTube Username. It has its own package so it can sit

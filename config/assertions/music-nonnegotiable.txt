@@ -7,3 +7,4 @@ Remove background playback restrictions
 GmsCore support
 Custom branding for YouTube Music
 Settings for YouTube Music
+Keep playback on activity destroy

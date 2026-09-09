@@ -193,7 +193,7 @@
         },
         "patches": {
             "Keep playback on activity destroy": {
-                "enabled": false
+                "enabled": true
             },
             "Clone with badge": {
                 "enabled": false

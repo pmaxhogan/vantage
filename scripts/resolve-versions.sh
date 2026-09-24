@@ -8,7 +8,9 @@
 # Resolves:
 #   - anddea dev channel  = latest PRERELEASE on ANDDEA_REPO (+ its .mpp asset URL)
 #   - morphe channel      = latest stable RELEASE on MORPHE_PATCHES_REPO (+ .mpp URL)
-#   - morphe-cli          = PINNED MORPHE_CLI_VERSION jar URL
+#   - morphe-cli          = NOT resolved here: build.sh picks it once the bundles
+#                           are downloaded (setup_morphe_cli). This only reports
+#                           the last release's cli as MORPHE_CLI_LAST_GOOD.
 #   - NEEDS_BUILD         = true unless (both patch versions == last release's
 #                           manifest) and not --force
 #
@@ -64,16 +66,9 @@ VANTAGE_PATCHES_MPP_URL="$(jq -r '.assets[] | select(.name|endswith(".mpp")) | .
 [ -n "$VANTAGE_PATCHES_MPP_URL" ] || die "no .mpp asset on vantage-patches release $VANTAGE_PATCHES_VERSION"
 log "  vantage-patches = $VANTAGE_PATCHES_VERSION"
 
-# ---- morphe-cli: pinned jar ----------------------------------------------
-log "Resolving pinned morphe-cli $MORPHE_CLI_VERSION jar from $MORPHE_CLI_REPO ..."
-cli_json="$(gh api "repos/$MORPHE_CLI_REPO/releases/tags/v$MORPHE_CLI_VERSION" 2>/dev/null \
-  || gh api "repos/$MORPHE_CLI_REPO/releases/tags/$MORPHE_CLI_VERSION")"
-CLI_JAR_URL="$(jq -r '.assets[] | select(.name|endswith("-all.jar")) | .browser_download_url' <<<"$cli_json" | head -1)"
-[ -n "$CLI_JAR_URL" ] || die "no -all.jar asset on morphe-cli $MORPHE_CLI_VERSION"
-
 # ---- skip logic: compare with last build release's manifest ---------------
 NEEDS_BUILD="true"
-LAST_ANDDEA=""; LAST_MORPHE=""; LAST_VANTAGE=""
+LAST_ANDDEA=""; LAST_MORPHE=""; LAST_VANTAGE=""; LAST_CLI=""
 if [ -n "$GH_REPO" ]; then
   log "Reading last build release manifest from $GH_REPO ..."
   # Newest release whose tag isn't the stock-cache tag and that has the manifest.
@@ -91,7 +86,8 @@ if [ -n "$GH_REPO" ]; then
       LAST_ANDDEA="$(jq -r '.anddeaVersion // empty' "$OUTFILE.manifest")"
       LAST_MORPHE="$(jq -r '.morphePatchesVersion // empty' "$OUTFILE.manifest")"
       LAST_VANTAGE="$(jq -r '.vantagePatchesVersion // empty' "$OUTFILE.manifest")"
-      log "  last release $last_tag built with anddea=$LAST_ANDDEA morphe=$LAST_MORPHE vantage-patches=$LAST_VANTAGE"
+      LAST_CLI="$(jq -r '.morpheCliVersion // empty' "$OUTFILE.manifest")"
+      log "  last release $last_tag built with anddea=$LAST_ANDDEA morphe=$LAST_MORPHE vantage-patches=$LAST_VANTAGE cli=$LAST_CLI"
       if [ "$LAST_ANDDEA" = "$ANDDEA_VERSION" ] && [ "$LAST_MORPHE" = "$MORPHE_VERSION" ] \
          && [ "$LAST_VANTAGE" = "$VANTAGE_PATCHES_VERSION" ]; then
         NEEDS_BUILD="false"
@@ -119,8 +115,7 @@ fi
   echo "MORPHE_MPP_URL=$MORPHE_MPP_URL"
   echo "VANTAGE_PATCHES_VERSION=$VANTAGE_PATCHES_VERSION"
   echo "VANTAGE_PATCHES_MPP_URL=$VANTAGE_PATCHES_MPP_URL"
-  echo "MORPHE_CLI_VERSION=$MORPHE_CLI_VERSION"
-  echo "CLI_JAR_URL=$CLI_JAR_URL"
+  echo "MORPHE_CLI_LAST_GOOD=$LAST_CLI"
   echo "NEEDS_BUILD=$NEEDS_BUILD"
 } > "$OUTFILE"
 rm -f "$OUTFILE.manifest"

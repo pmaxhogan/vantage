@@ -48,17 +48,17 @@ if [ "${NEEDS_BUILD:-true}" != "true" ]; then
 fi
 
 # ---- fetch toolchain + bundles -------------------------------------------
-CLI_JAR="$TOOLS/morphe-cli-$MORPHE_CLI_VERSION-all.jar"
 ANDDEA_MPP="$TOOLS/anddea-$ANDDEA_VERSION.mpp"
 MORPHE_MPP="$TOOLS/morphe-$MORPHE_VERSION.mpp"
 # Stable file name on purpose: an options-file entry binds to a bundle by its
 # meta.source name, so a versioned name would silently detach the entry.
 VANTAGE_MPP="$TOOLS/vantage-patches.mpp"
 dl() { log "download $(basename "$2")"; curl -fsSL "$1" -o "$2" || die "download failed: $1"; }
-[ -f "$CLI_JAR" ]    || dl "$CLI_JAR_URL"    "$CLI_JAR"
 [ -f "$ANDDEA_MPP" ] || dl "$ANDDEA_MPP_URL" "$ANDDEA_MPP"
 [ -f "$MORPHE_MPP" ] || dl "$MORPHE_MPP_URL" "$MORPHE_MPP"
 rm -f "$VANTAGE_MPP"; dl "$VANTAGE_PATCHES_MPP_URL" "$VANTAGE_MPP"
+# Sets MORPHE_CLI_VERSION + CLI_JAR: latest stable cli that loads all three bundles.
+setup_morphe_cli "$TOOLS" "${MORPHE_CLI_LAST_GOOD:-}" "$ANDDEA_MPP" "$MORPHE_MPP" "$VANTAGE_MPP"
 
 # ---- resolve target app version ------------------------------------------
 # Newest version in the top patch-count tier from `morphe-cli list-versions`,

@@ -95,16 +95,6 @@ else
   log "  vantage-patches = $VANTAGE_PATCHES_VERSION"
 fi
 
-# ---- resolve morphe-cli (pinned, same jar the other builds use) -----------
-CLI_JAR="$TOOLS/morphe-cli-$MORPHE_CLI_VERSION-all.jar"
-if [ ! -f "$CLI_JAR" ]; then
-  cli_json="$(gh api "repos/$MORPHE_CLI_REPO/releases/tags/v$MORPHE_CLI_VERSION" 2>/dev/null \
-    || gh api "repos/$MORPHE_CLI_REPO/releases/tags/$MORPHE_CLI_VERSION")"
-  CLI_JAR_URL="$(jq -r '.assets[]|select(.name|endswith("-all.jar"))|.browser_download_url' <<<"$cli_json" | head -1)"
-  [ -n "$CLI_JAR_URL" ] || die "no -all.jar asset on morphe-cli $MORPHE_CLI_VERSION"
-  dl "$CLI_JAR_URL" "$CLI_JAR"
-fi
-
 # ---- resolve target Claude version ------------------------------------------
 # The clone patch has no compatiblePackages gate (a rename/badge patch works on
 # any build), so `morphe-cli list-versions` isn't the right tool here - it's
@@ -155,7 +145,7 @@ log "target Claude version: $CLAUDE_VER (candidates: $(printf '%s' "$CLAUDE_CAND
 # Rebuild when EITHER the Claude app version OR the vantage-patches bundle
 # changed - unlike X (piko-only), Claude has no version gate on the patch, so
 # the app itself moves the target far more often than the patch bundle does.
-NEEDS_BUILD="true"
+NEEDS_BUILD="true"; last_cli=""
 if [ -n "$GH_REPO" ]; then
   log "Reading last Claude release manifest from $GH_REPO ..."
   last_tag="$(gh api "repos/$GH_REPO/releases" --paginate 2>/dev/null \
@@ -164,6 +154,7 @@ if [ -n "$GH_REPO" ]; then
        -p 'built-versions-claude.json' -O "$WORK/last-claude.json" --clobber 2>/dev/null; then
     last_claude_ver="$(jq -r '.claudeVersion // empty' "$WORK/last-claude.json")"
     last_vp_ver="$(jq -r '.vantagePatchesVersion // empty' "$WORK/last-claude.json")"
+    last_cli="$(jq -r '.morpheCliVersion // empty' "$WORK/last-claude.json")"
     log "  last Claude release $last_tag: claude=$last_claude_ver vantage-patches=$last_vp_ver"
     if [ "$last_claude_ver" = "$CLAUDE_VER" ] && [ "$last_vp_ver" = "$VANTAGE_PATCHES_VERSION" ]; then
       NEEDS_BUILD="false"
@@ -177,6 +168,9 @@ if [ "$NEEDS_BUILD" != "true" ]; then
   log "Claude version and vantage-patches unchanged since the last Claude release - skipping (success)."
   exit 0
 fi
+
+# ---- resolve morphe-cli (latest stable that loads the bundle, see lib.sh) ---
+setup_morphe_cli "$TOOLS" "$last_cli" "$PATCHES_MPP"
 
 # ---- keystore preflight ------------------------------------------------------
 "$VANTAGE_ROOT/scripts/assert.sh" keystore-preflight "$KEYSTORE"

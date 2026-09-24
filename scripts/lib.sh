@@ -75,6 +75,68 @@ sha256_of() {
   else shasum -a 256 "$1" | cut -d' ' -f1; fi
 }
 
+# ---- morphe-cli ------------------------------------------------------------
+# Pick the morphe-cli jar and set MORPHE_CLI_VERSION + CLI_JAR. The patch format
+# is coupled to the cli: a bundle that needs a newer patcher API dies with a
+# NoClassDefFoundError (morphe-patches 1.36.0, 1.40.0 and 1.44.0 each broke the
+# nightly for days while the cli sat on a hand-bumped pin). So the cli floats:
+#   - MORPHE_CLI_VERSION set (env or build.env) -> that exact version, no fallback
+#   - otherwise the latest stable release of MORPHE_CLI_REPO, and if it cannot
+#     load every bundle, the version the last successful release was built with
+# A candidate is accepted only when `list-versions` loads each bundle cleanly.
+# Usage: setup_morphe_cli <tools_dir> <last_good_version|""> <mpp>...
+setup_morphe_cli() {
+  local tools="$1" last_good="$2"; shift 2
+  local -a cands=()
+  if [ -n "${MORPHE_CLI_VERSION:-}" ]; then
+    cands=("$MORPHE_CLI_VERSION")
+    log "morphe-cli pinned to $MORPHE_CLI_VERSION (MORPHE_CLI_VERSION)"
+  else
+    local latest
+    latest="$(retry 3 gh api "repos/$MORPHE_CLI_REPO/releases/latest" --jq '.tag_name')" \
+      || die "could not read the latest morphe-cli release from $MORPHE_CLI_REPO"
+    latest="${latest#v}"
+    cands=("$latest")
+    [ -n "$last_good" ] && [ "$last_good" != "$latest" ] && cands+=("$last_good")
+    log "morphe-cli candidates: ${cands[*]} (latest stable, then last good)"
+  fi
+
+  local v jar url json
+  for v in "${cands[@]}"; do
+    jar="$tools/morphe-cli-$v-all.jar"
+    if [ ! -f "$jar" ]; then
+      json="$(gh api "repos/$MORPHE_CLI_REPO/releases/tags/v$v" 2>/dev/null \
+        || gh api "repos/$MORPHE_CLI_REPO/releases/tags/$v" 2>/dev/null)" || json=""
+      url="$(jq -r '.assets[]? | select(.name|endswith("-all.jar")) | .browser_download_url' <<<"${json:-null}" | head -1)"
+      if [ -z "$url" ]; then warn "morphe-cli $v: no -all.jar asset, skipping"; continue; fi
+      log "download morphe-cli-$v-all.jar"
+      retry 3 curl -fsSL "$url" -o "$jar" || { rm -f "$jar"; warn "morphe-cli $v: download failed, skipping"; continue; }
+    fi
+    if cli_loads_bundles "$jar" "$@"; then
+      MORPHE_CLI_VERSION="$v"; CLI_JAR="$jar"
+      log "morphe-cli = $v"
+      return 0
+    fi
+    warn "morphe-cli $v cannot load the patch bundles, trying the next candidate"
+  done
+  die "no morphe-cli candidate (${cands[*]}) could load: $*"
+}
+
+# True when `list-versions` loads every bundle with no JVM linkage error. Prints
+# the output of the first failure so the log shows which class was missing.
+cli_loads_bundles() {
+  local jar="$1" mpp out rc; shift
+  for mpp in "$@"; do
+    rc=0
+    out="$(java -jar "$jar" list-versions --patches="$mpp" 2>&1)" || rc=$?
+    if [ "$rc" -ne 0 ] || grep -qE 'NoClassDefFoundError|ClassNotFoundException|NoSuchMethodError|NoSuchFieldError|AbstractMethodError|IncompatibleClassChangeError' <<<"$out"; then
+      warn "$(basename "$jar") failed to load $(basename "$mpp") (java exit $rc)"
+      grep -E 'Exception|Error' <<<"$out" | head -5 | sed 's/^/  /' >&2 || true
+      return 1
+    fi
+  done
+}
+
 # Resolve the newest patch-compatible app version for a package from a .mpp
 # bundle via `morphe-cli list-versions` (newest version in the top patch-count
 # tier). A non-empty $4 pins/overrides. Single source of truth for the most

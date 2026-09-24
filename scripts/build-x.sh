@@ -66,7 +66,7 @@ log "  piko = $PIKO_VERSION"
 # ---- skip logic vs the latest X release's manifest ------------------------
 # X releases are tagged "x-v..."; the YouTube releases and the stock-cache are
 # ignored. Build when piko changed, or when forced.
-NEEDS_BUILD="true"
+NEEDS_BUILD="true"; last_cli=""
 if [ -n "$GH_REPO" ]; then
   log "Reading last X release manifest from $GH_REPO ..."
   last_tag="$(gh api "repos/$GH_REPO/releases" --paginate 2>/dev/null \
@@ -74,6 +74,7 @@ if [ -n "$GH_REPO" ]; then
   if [ -n "$last_tag" ] && gh release download "$last_tag" -R "$GH_REPO" \
        -p 'built-versions-x.json' -O "$WORK/last-x.json" --clobber 2>/dev/null; then
     last_piko="$(jq -r '.pikoVersion // empty' "$WORK/last-x.json")"
+    last_cli="$(jq -r '.morpheCliVersion // empty' "$WORK/last-x.json")"
     log "  last X release $last_tag: piko=$last_piko"
     [ "$last_piko" = "$PIKO_VERSION" ] && NEEDS_BUILD="false"
   else
@@ -87,17 +88,11 @@ if [ "$NEEDS_BUILD" != "true" ]; then
 fi
 
 # ---- fetch toolchain + bundles --------------------------------------------
-CLI_JAR="$TOOLS/morphe-cli-$MORPHE_CLI_VERSION-all.jar"
 PIKO_MPP="$TOOLS/piko-$PIKO_VERSION.mpp"
 dl() { log "download $(basename "$2")"; curl -fsSL "$1" -o "$2" || die "download failed: $1"; }
-if [ ! -f "$CLI_JAR" ]; then
-  cli_json="$(gh api "repos/$MORPHE_CLI_REPO/releases/tags/v$MORPHE_CLI_VERSION" 2>/dev/null \
-    || gh api "repos/$MORPHE_CLI_REPO/releases/tags/$MORPHE_CLI_VERSION")"
-  CLI_JAR_URL="$(jq -r '.assets[]|select(.name|endswith("-all.jar"))|.browser_download_url' <<<"$cli_json" | head -1)"
-  [ -n "$CLI_JAR_URL" ] || die "no -all.jar asset on morphe-cli $MORPHE_CLI_VERSION"
-  dl "$CLI_JAR_URL" "$CLI_JAR"
-fi
 [ -f "$PIKO_MPP" ] || dl "$PIKO_MPP_URL" "$PIKO_MPP"
+# Sets MORPHE_CLI_VERSION + CLI_JAR (latest stable cli that loads piko).
+setup_morphe_cli "$TOOLS" "$last_cli" "$PIKO_MPP"
 
 # ---- resolve target X version (piko bundle is the binding constraint) -----
 X_VER="$(resolve_target_version "$CLI_JAR" "$PIKO_MPP" "$X_PACKAGE" "${X_VERSION_PIN:-}")"

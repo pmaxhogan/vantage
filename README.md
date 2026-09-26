@@ -462,7 +462,7 @@ pages entirely (not just the usual Cloudflare TLS check most other apps get),
 so it isn't in Claude's source list at all. Instead `apkcombo` and `uptodown`
 serve an XAPK/APKS zip of splits (base + arch + language + density), and
 `download-apk.sh`'s `bundle` container (`verify_bundle()`) extracts just the
-four splits the build needs (base + arm64-v8a + `en` + `xxhdpi`), verifies each
+splits the build needs (base + arm64-v8a + `xxhdpi`, plus `en` when the bundle ships one), verifies each
 one's signing cert individually, and only then merges them into one APK with
 [APKEditor](https://github.com/REAndroid/APKEditor) (`scripts/build-claude.sh`
 downloads and sha256-pins the jar) - merging first would mean trusting content

@@ -29,9 +29,9 @@
 #
 # A fourth container, "bundle" (Claude), covers an app with no single base APK
 # and no genuine APKM mirror either: sources return an XAPK/APKS zip of splits,
-# every required split (base + arch + "en" + "xxhdpi") is apksigner-verified
+# every required split (base + arch + "xxhdpi", + "en" if present) is apksigner-verified
 # individually against config/expected-signatures.txt, and only THEN are the
-# four merged into one APK with APKEditor ($APKEDITOR_JAR, set by
+# three or four merged into one APK with APKEditor ($APKEDITOR_JAR, set by
 # build-claude.sh) - see verify_bundle() below.
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -182,7 +182,7 @@ src_apkcombo() {
   # single-APK one below. Confirmed live (2026-09-08): the download anchor is
   # apkcombo's own /r2?u=<signed-R2-url> proxy - already a complete link, no
   # checkin token needed. The zip carries every split; verify_bundle() (the
-  # bundle gate, see the end of this file) extracts only the four splits it
+  # bundle gate, see the end of this file) extracts only the three or four splits it
   # needs and checks their signatures before anything is trusted.
   if [ "$CONTAINER" = "bundle" ]; then
     local dl_page="https://apkcombo.app/${repo%%/*}/${repo#*/}/download/phone-${VER}-xapk"
@@ -386,14 +386,15 @@ verify_apkm() {
 # verify_apkm() (X's format, patched directly), morphe-cli needs ONE APK to
 # patch, so this gate goes one step further than the others:
 #   1. valid zip (PK magic + integrity)
-#   2. locate the four entries we actually need: base + arch config + "en" +
-#      "xxhdpi" (a source that doesn't carry one of these fails resolve, not
-#      verify - it's simply missing what we need)
-#   3. apksigner-verify EVERY one of those four against an expected $PKG cert
+#   2. locate the entries we actually need: base + arch config + "xxhdpi",
+#      plus "en" when the bundle has one (optional) - a source that doesn't
+#      carry a required one fails resolve, not verify (it's simply missing
+#      what we need)
+#   3. apksigner-verify EVERY one of those against an expected $PKG cert
 #      (same rule as verify_apkm - nothing gets merged unless it's independently
 #      proven genuine first)
 #   4. the base split's package + versionName must match $PKG/$VER
-#   5. ONLY THEN merge the four verified splits into one APK with APKEditor
+#   5. ONLY THEN merge the verified splits into one APK with APKEditor
 #      ($APKEDITOR_JAR, set by build-claude.sh) and overwrite $1 with it, so the
 #      caller's normal `cp "$cand" "$OUT"` picks up the merged result unchanged.
 # Merging recompiles resources.arsc and the manifest, which invalidates the
@@ -434,18 +435,24 @@ verify_bundle() {
   arch_entry="$(grep -iE "^(config\.)?${arch_us}\.apk\$" <<<"$names" | head -1)"
   lang_entry="$(grep -iE '^(config\.)?en\.apk$' <<<"$names" | head -1)"
   density_entry="$(grep -iE '^(config\.)?xxhdpi\.apk$' <<<"$names" | head -1)"
-  if [ -z "$base_entry" ] || [ -z "$arch_entry" ] || [ -z "$lang_entry" ] || [ -z "$density_entry" ]; then
-    warn "  reject: bundle missing a required split (base='$base_entry' arch='$arch_entry' en='$lang_entry' xxhdpi='$density_entry')"
+  if [ -z "$base_entry" ] || [ -z "$arch_entry" ] || [ -z "$density_entry" ]; then
+    warn "  reject: bundle missing a required split (base='$base_entry' arch='$arch_entry' xxhdpi='$density_entry')"
     return 1
   fi
+  # "en" is optional: it only ever held regional English overrides (en-GB,
+  # en-CA, ...) - default English strings live in the base. Claude 1.260923.20
+  # trimmed its locale list and stopped shipping a config.en split entirely.
+  local entries=("$base_entry" "$arch_entry" "$density_entry")
+  if [ -n "$lang_entry" ]; then entries+=("$lang_entry")
+  else log "  bundle has no en split (default English is in base) - merging without it"; fi
 
   local xd; xd="$(mktemp -d)"
-  if ! unzip -qo "$zipf" "$base_entry" "$arch_entry" "$lang_entry" "$density_entry" -d "$xd" 2>/dev/null; then
+  if ! unzip -qo "$zipf" "${entries[@]}" -d "$xd" 2>/dev/null; then
     warn "  reject: could not extract the required splits from the bundle"; rm -rf "$xd"; return 1
   fi
 
   local f certs rc got g matched badging pkg_got ver_got
-  for f in "$xd/$base_entry" "$xd/$arch_entry" "$xd/$lang_entry" "$xd/$density_entry"; do
+  for f in "${entries[@]/#/$xd/}"; do
     certs="$("$apksigner" verify --print-certs "$f" 2>/dev/null)"; rc=$?
     if [ "$rc" -ne 0 ]; then
       warn "  reject: split $(basename "$f") failed apksigner verification (unsigned/tampered)"; rm -rf "$xd"; return 1
@@ -468,10 +475,10 @@ verify_bundle() {
     warn "  reject: base split package/version mismatch - expected $PKG/$VER got ${pkg_got:-<none>}/${ver_got:-<none>}"
     rm -rf "$xd"; return 1
   fi
-  log "  verify OK: bundle $PKG $VER, all 4 required splits signed by an expected cert"
+  log "  verify OK: bundle $PKG $VER, all ${#entries[@]} splits signed by an expected cert"
 
-  # All four verified - merge into one APK. APKEditor merges every *.apk it
-  # finds in the input directory, which is exactly these four ($xd holds
+  # All verified - merge into one APK. APKEditor merges every *.apk it
+  # finds in the input directory, which is exactly these ($xd holds
   # nothing else - we only extracted these entries).
   local merged="$xd/merged.apk"
   if ! java -jar "$APKEDITOR_JAR" m -i "$xd" -o "$merged" -f >/dev/null 2>&1; then
@@ -480,7 +487,7 @@ verify_bundle() {
   [ -f "$merged" ] || { warn "  reject: APKEditor reported success but produced no merged APK"; rm -rf "$xd"; return 1; }
 
   # A post-merge apksigner check would always fail (merging invalidates the
-  # signature block) - that's expected, not a red flag; the four pre-merge
+  # signature block) - that's expected, not a red flag; the pre-merge
   # checks above are the trust boundary. Confirm the merge preserved identity.
   badging="$("$aapt" dump badging "$merged" 2>/dev/null || true)"
   pkg_got="$(grep -oE "^package: name='[^']*'" <<<"$badging" | sed -E "s/.*name='([^']*)'.*/\1/" | head -1)"

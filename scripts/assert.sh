@@ -36,7 +36,7 @@ keystore_preflight() {
 
 # ================================ variant ==================================
 assert_variant() {
-  local NAME="" RESULT="" LOG="" APK="" PKG="" LABEL="" NONNEG="" INERT="" FORBIDDEN="" COUNT="" SETTINGS="" MINMB="40"
+  local NAME="" RESULT="" LOG="" APK="" PKG="" LABEL="" NONNEG="" INERT="" FORBIDDEN="" COUNT="" SETTINGS="" MINMB="40" DEXSTRINGS=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --variant) NAME="$2"; shift 2;;
@@ -51,6 +51,7 @@ assert_variant() {
       --expected-count) COUNT="$2"; shift 2;;
       --settings) SETTINGS="$2"; shift 2;;
       --min-size-mb) MINMB="$2"; shift 2;;
+      --dex-strings) DEXSTRINGS="$2"; shift 2;;
       *) die "unknown arg: $1";;
     esac
   done
@@ -222,6 +223,27 @@ PY
     else
       warn "[$NAME] settings-key guard: unzip/strings unavailable - skipped"
     fi
+  fi
+
+  # --- 9. dex-strings guard ------------------------------------------------
+  # Names a patch resolves by reflection at runtime (not at patch time) must
+  # still exist in the dex, or a rename upstream silently disables the patch.
+  if [ -n "$DEXSTRINGS" ]; then
+    [ -f "$DEXSTRINGS" ] || die "not found: $DEXSTRINGS"
+    local dsdir; dsdir="$(mktemp -d)"
+    unzip -qo "$APK" 'classes*.dex' -d "$dsdir" 2>/dev/null || true
+    local dsall; dsall="$(cat "$dsdir"/classes*.dex 2>/dev/null | strings || true)"
+    rm -rf "$dsdir"
+    local ds
+    while IFS= read -r ds; do
+      ds="${ds%%#*}"; ds="$(printf '%s' "$ds" | tr -d '[:space:]')"
+      [ -z "$ds" ] && continue
+      if grep -Fq -- "$ds" <<<"$dsall"; then
+        log "[$NAME] dex string present: $ds"
+      else
+        warn "[$NAME] dex string MISSING: $ds (a runtime-reflection patch would silently stop working)"; fail=1
+      fi
+    done < "$DEXSTRINGS"
   fi
 
   if [ "$fail" -ne 0 ]; then die "[$NAME] ASSERTIONS FAILED - build must not be released"; fi

@@ -101,6 +101,7 @@ build_variant() {
     --nonneg "$nonneg" --inert "$inert" --min-size-mb "$minmb")
   [ -n "$count" ] && aa+=(--expected-count "$count")
   [ -n "$settings" ] && aa+=(--settings "$settings")
+  [ -f "$A/${name}-dex-strings.txt" ] && aa+=(--dex-strings "$A/${name}-dex-strings.txt")
   "$VANTAGE_ROOT/scripts/assert.sh" "${aa[@]}"
 
   cp "$OUT/$outapk" "$OUTDIR/$outapk"

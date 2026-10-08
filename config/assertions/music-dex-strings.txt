@@ -1,0 +1,18 @@
+# Names "Play videos Music marks unavailable" (vantage-patches) looks up by
+# reflection at runtime inside anddea's Spoof video streams extension. A rename
+# upstream would not fail the patch step - the app would just quietly go back
+# to "This video is not available" - so the build checks the dex for each one.
+Lapp/morphe/extension/shared/spoof/SpoofVideoStreamsPatch;
+Lapp/morphe/extension/shared/spoof/requests/StreamOrDetailsDataRequest;
+Lapp/morphe/extension/music/patches/spoof/SpoofVideoStreamsPatch;
+Lapp/morphe/extension/music/settings/Settings;
+Lapp/vantage/extension/music/UnplayableOverride;
+getStreamingData
+isSpoofingEnabled
+getStreamRequestForVideoId
+fetchRequestForDownload
+getAvailableClients
+getStreamDetails
+SPOOF_VIDEO_STREAMS_CLIENT_TYPE
+streamingData
+getGeneratedRegistry

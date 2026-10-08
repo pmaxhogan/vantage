@@ -12,10 +12,13 @@
 # disabled - so a stale name here means it is silently skipped and "GmsCore
 # support" renames the package to its own fallback (app.morphe.android.youtube),
 # breaking in-place updates for everyone on app.vantage.youtube.morphe.
+#
+# Note: "Alternative thumbnails" was renamed to "DeArrow" in morphe-patches
+# 1.46.0 (MorpheApp/morphe-patches#3447), which also added crowdsourced titles.
 Hide ads
 SponsorBlock
 Return YouTube Dislike
-Alternative thumbnails
+DeArrow
 Hide Shorts components
 Disable Shorts resuming on startup
 Change start page

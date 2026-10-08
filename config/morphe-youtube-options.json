@@ -191,7 +191,7 @@
                     "lightThemeColor": "@android:color/white"
                 }
             },
-            "Alternative thumbnails": {
+            "DeArrow": {
                 "enabled": true
             },
             "Bypass image region restrictions": {

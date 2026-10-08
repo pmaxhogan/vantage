@@ -108,7 +108,8 @@
                 "enabled": true,
                 "options": {
                     "customName": "Vantage",
-                    "customIcon": "config/icon/vantage"
+                    "customIcon": "config/icon/vantage",
+                    "appIcon": "custom"
                 }
             },
             "Hide Shorts dimming": {

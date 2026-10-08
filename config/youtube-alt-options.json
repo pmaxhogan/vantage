@@ -108,7 +108,8 @@
                 "enabled": true,
                 "options": {
                     "customName": "Vantage Alt",
-                    "customIcon": "config/icon/vantage-alt"
+                    "customIcon": "config/icon/vantage-alt",
+                    "appIcon": "custom"
                 }
             },
             "Hide Shorts dimming": {

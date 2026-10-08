@@ -80,7 +80,8 @@
                 "enabled": true,
                 "options": {
                     "customName": "Vantage Music",
-                    "customIcon": "config/icon/vantage-music"
+                    "customIcon": "config/icon/vantage-music",
+                    "appIcon": "custom"
                 }
             },
             "Hide overlay filter": {
@@ -197,6 +198,9 @@
             },
             "Clone with badge": {
                 "enabled": false
+            },
+            "Play videos Music marks unavailable": {
+                "enabled": true
             }
         }
     }

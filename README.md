@@ -347,7 +347,7 @@ Import, then pick the JSON.
 5. For each variant, runs `download-apk.sh`, then `patch.sh`, then `assert.sh`.
 6. Creates one Release with all four APKs, `built-versions.json`, the Obtainium
    config, and the golden settings files. The tag encodes the date and patch
-   versions, for example `v2026.07.05-anddea4.2.0-dev.2-morphe1.33.0`.
+   versions, for example `v2026.07.05-anddea4.2.0-dev.2-vp0.1.2-morphe1.33.0`.
 
 Old releases stay put, so a rollback is just pointing Obtainium at an earlier tag.
 Since the repo is public, GitHub disables the scheduled workflow after 60 days

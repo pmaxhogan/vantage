@@ -155,7 +155,10 @@ cp "$VANTAGE_ROOT/obtainium-config.json" "$OUTDIR/" 2>/dev/null \
   || warn "obtainium-config.json not found - skipping (release will lack the onboarding config)"
 
 # ---- release (optional; workflow does this by default) --------------------
-TAG="v$(date -u +%Y.%m.%d)-anddea${ANDDEA_VERSION}-morphe${MORPHE_VERSION}"
+# vantage-patches is in the tag so a same-day rebuild for a new bundle gets its
+# own release: Obtainium compares release dates, and the in-place update below
+# keeps the original date, so phones would never be offered the rebuild.
+TAG="v$(date -u +%Y.%m.%d)-anddea${ANDDEA_VERSION}-vp${VANTAGE_PATCHES_VERSION}-morphe${MORPHE_VERSION}"
 echo "RELEASE_TAG=$TAG" > "$WORK/release.env"
 echo "YT_VER=$YT_VER" >> "$WORK/release.env"
 echo "MUSIC_VER=$MUSIC_VER" >> "$WORK/release.env"

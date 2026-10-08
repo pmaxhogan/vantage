@@ -36,6 +36,8 @@ jobs:
       VANTAGE_KEYSTORE_ALIAS: ${{ secrets.VANTAGE_KEYSTORE_ALIAS }}
       VANTAGE_KEYSTORE_SHA256: ${{ secrets.VANTAGE_KEYSTORE_SHA256 }}
       VANTAGE_CERT_SHA256: ${{ secrets.VANTAGE_CERT_SHA256 }}
+      GOOGLE_PLAY_EMAIL: ${{ secrets.GOOGLE_PLAY_EMAIL }}
+      GOOGLE_PLAY_AAS_TOKEN: ${{ secrets.GOOGLE_PLAY_AAS_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

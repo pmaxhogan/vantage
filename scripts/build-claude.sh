@@ -104,21 +104,44 @@ fi
 # (apkcombo listed 1.260904.19 while Uptodown already had 1.260907.19). The
 # download step then tries the sources in order and falls through to whichever
 # one actually carries that version.
-resolve_claude_version() {
+
+# Fetch a page body to stdout: plain curl first, then curl_cffi impersonating
+# Chrome when curl comes back empty. Both mirrors sit behind Cloudflare, which
+# sometimes 403s plain curl from runner IPs on its TLS fingerprint (Uptodown
+# does it every run; apkcombo did it on 2026-10-08 and failed the build).
+fetch_page() {
   local ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+  local body py
+  body="$(curl -fsSL --connect-timeout 20 --max-time 60 -A "$ua" "$1" 2>/dev/null || true)"
+  if [ -z "$body" ]; then
+    py="$(command -v python3 || command -v python || true)"
+    [ -n "$py" ] && body="$("$py" -c '
+import sys
+from curl_cffi import requests
+r = requests.get(sys.argv[1], impersonate="chrome", timeout=60)
+if r.status_code == 200:
+    sys.stdout.write(r.text)
+else:
+    print("HTTP", r.status_code, file=sys.stderr)
+' "$1" 2>/dev/null || true)"
+  fi
+  printf '%s' "$body"
+}
+resolve_claude_version() {
   local src ver="" best=""
-  for src in ${CLAUDE_DL_SOURCES:-apkcombo uptodown}; do
+  for src in ${CLAUDE_DL_SOURCES:-googleplay apkcombo uptodown}; do
     case "$src" in
+      googleplay)
+        ver="$(gplay_version "$CLAUDE_PACKAGE" || true)"
+        ;;
       apkcombo)
-        ver="$(curl -fsSL --connect-timeout 20 --max-time 60 -A "$ua" \
-            "https://apkcombo.app/claude/${CLAUDE_PACKAGE}/download/apk" 2>/dev/null \
+        ver="$(fetch_page "https://apkcombo.app/claude/${CLAUDE_PACKAGE}/download/apk" \
           | grep -oE '"description" content="[^"]*"' \
           | grep -oE 'Version:[[:space:]]*[0-9]+(\.[0-9]+)+' \
           | grep -oE '[0-9]+(\.[0-9]+)+' | head -1 || true)"
         ;;
       uptodown)
-        ver="$(curl -fsSL --connect-timeout 20 --max-time 60 -A "$ua" \
-            "https://claude.en.uptodown.com/android/versions" 2>/dev/null \
+        ver="$(fetch_page "https://claude.en.uptodown.com/android/versions" \
           | grep -oE '<span class="version">[0-9]+(\.[0-9]+)+</span>' \
           | head -1 | grep -oE '[0-9]+(\.[0-9]+)+' || true)"
         ;;
@@ -137,7 +160,7 @@ resolve_claude_version() {
   # turn into a failed build.
   printf '%s\n' "$best" | grep -v '^$' | sort -Vr | uniq
 }
-CLAUDE_CANDIDATES="$(resolve_claude_version)" || die "could not resolve the latest Claude version from any of: ${CLAUDE_DL_SOURCES:-apkcombo uptodown}"
+CLAUDE_CANDIDATES="$(resolve_claude_version)" || die "could not resolve the latest Claude version from any of: ${CLAUDE_DL_SOURCES:-googleplay apkcombo uptodown}"
 CLAUDE_VER="$(printf '%s\n' "$CLAUDE_CANDIDATES" | head -1)"
 log "target Claude version: $CLAUDE_VER (candidates: $(printf '%s' "$CLAUDE_CANDIDATES" | tr '\n' ' '))"
 

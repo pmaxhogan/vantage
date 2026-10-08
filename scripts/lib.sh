@@ -75,6 +75,69 @@ sha256_of() {
   else shasum -a 256 "$1" | cut -d' ' -f1; fi
 }
 
+# ---- Google Play (apkeep) -----------------------------------------------------
+# Play only ever serves the current release of an app, so a Play download is
+# both the version answer and the file. gplay_bundle downloads the splits once
+# per build dir and repacks them as a zip that verify_bundle() reads (base as
+# "<pkg>.apk", splits as "config.<x>.apk"); later calls reuse it. Prints the zip
+# path on stdout, logs on stderr.
+gplay_bundle() {
+  local pkg="$1" dir="$VANTAGE_ROOT/build/gplay" bin
+  local zipf="$dir/$pkg.zip"
+  if [ -s "$zipf" ]; then printf '%s\n' "$zipf"; return 0; fi
+  if [ -z "${GOOGLE_PLAY_EMAIL:-}" ] || [ -z "${GOOGLE_PLAY_AAS_TOKEN:-}" ]; then
+    warn "  googleplay: GOOGLE_PLAY_EMAIL / GOOGLE_PLAY_AAS_TOKEN not set - skipping"; return 1
+  fi
+  bin="$(apkeep_bin "$dir")" || return 1
+  local tmp; tmp="$(mktemp -d)"
+  log "  googleplay: apkeep $pkg (current Play release)" >&2
+  if ! "$bin" -a "$pkg" -d google-play -e "$GOOGLE_PLAY_EMAIL" -t "$GOOGLE_PLAY_AAS_TOKEN" \
+       --accept-tos -o split_apk=true,device=px_9a "$tmp" >&2; then
+    warn "  googleplay: apkeep failed"; rm -rf "$tmp"; return 1
+  fi
+  local src="$tmp/$pkg" f name
+  if [ ! -f "$src/$pkg.apk" ]; then
+    warn "  googleplay: apkeep wrote no $pkg/$pkg.apk (got: $(cd "$tmp" && find . -type f | tr '\n' ' '))"; rm -rf "$tmp"; return 1
+  fi
+  for f in "$src"/"$pkg".*.apk; do
+    [ -e "$f" ] || continue
+    name="$(basename "$f")"; mv "$f" "$src/${name#"$pkg".}"
+  done
+  mkdir -p "$dir"
+  (cd "$src" && zip -q -X "$zipf.part" ./*.apk) || { warn "  googleplay: zip failed"; rm -rf "$tmp"; return 1; }
+  mv "$zipf.part" "$zipf"; rm -rf "$tmp"
+  printf '%s\n' "$zipf"
+}
+
+# versionName of the base APK inside a gplay_bundle zip.
+gplay_version() {
+  local pkg="$1" zipf aapt tmp ver
+  zipf="$(gplay_bundle "$pkg")" || return 1
+  aapt="$(find_sdk_tool aapt)" || { warn "  googleplay: aapt not found"; return 1; }
+  tmp="$(mktemp -d)"
+  unzip -qo "$zipf" "$pkg.apk" -d "$tmp" || { rm -rf "$tmp"; return 1; }
+  ver="$("$aapt" dump badging "$tmp/$pkg.apk" 2>/dev/null | grep -oE "versionName='[^']*'" | head -1 | sed -E "s/versionName='([^']*)'/\1/")"
+  rm -rf "$tmp"
+  [ -n "$ver" ] && printf '%s\n' "$ver"
+}
+
+# Path to an apkeep binary: one on PATH, else the pinned Linux release.
+apkeep_bin() {
+  local dir="$1" bin
+  if command -v apkeep >/dev/null 2>&1; then command -v apkeep; return 0; fi
+  : "${APKEEP_VERSION:?}"; : "${APKEEP_URL:?}"; : "${APKEEP_SHA256:?}"
+  bin="$dir/apkeep-$APKEEP_VERSION"
+  mkdir -p "$dir"
+  if [ ! -x "$bin" ]; then
+    curl -fsSL "$APKEEP_URL" -o "$bin.part" || { warn "  googleplay: apkeep download failed"; return 1; }
+    if [ "$(sha256_of "$bin.part")" != "$APKEEP_SHA256" ]; then
+      warn "  googleplay: apkeep sha256 mismatch - refusing it"; rm -f "$bin.part"; return 1
+    fi
+    chmod +x "$bin.part"; mv "$bin.part" "$bin"
+  fi
+  printf '%s\n' "$bin"
+}
+
 # ---- morphe-cli ------------------------------------------------------------
 # Pick the morphe-cli jar and set MORPHE_CLI_VERSION + CLI_JAR. The patch format
 # is coupled to the cli: a bundle that needs a newer patcher API dies with a

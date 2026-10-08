@@ -542,10 +542,14 @@ bash scripts/build.sh --force                 # build + stage in build/release
   YouTube variants have a fallback. Its pinned signing cert also means an X
   signing-key rotation fails the gate until `config/expected-signatures.txt` is
   updated.
-- Claude clones are effectively single-source too, in practice: `apkcombo` is
-  the source that works today, and `uptodown` is a real fallback in code but
-  currently fails every time because Uptodown gates its actual file link behind
-  a live Cloudflare Turnstile challenge that no TLS-impersonation trick gets
-  past (see [Stock-APK download](#stock-apk-download)). An apkcombo layout
-  change or outage stops Claude builds until a working third source is added.
+- Claude clones are effectively single-source too: `googleplay` (apkeep with a
+  throwaway account's AAS token in the `GOOGLE_PLAY_EMAIL` /
+  `GOOGLE_PLAY_AAS_TOKEN` secrets) is the source that works today. apkcombo,
+  the original source, went dark on 2026-10-08 when its domains lapsed, and
+  `uptodown` fails every time because Uptodown gates its actual file link behind
+  a live Cloudflare Turnstile challenge (see [Stock-APK download](#stock-apk-download)).
+  Play only serves the current release, so a version a mirror lists before Play
+  rolls it out is skipped until Play catches up. A revoked token stops Claude
+  builds until a new one is minted (`apkeep -e <email> --oauth-token ...`, see
+  apkeep's USAGE-google-play.md).
   Its pinned signing cert has the same rotation caveat as X's.

@@ -303,6 +303,19 @@ src_apkpure() { py_source apkpure-dl.py "$1"; }
 # a different app/flow) exposes one without Turnstile.
 src_uptodown() { py_source uptodown-dl.py "$1"; }
 
+# --- Google Play (apkeep) ----------------------------------------------------
+# Claude's primary source since apkcombo's domains lapsed (2026-10-08). Play only
+# serves the current release; verify_bundle() rejects it when that is not $VER.
+# Split bundles only - Play has no single base APK to offer the "apk" container.
+src_googleplay() {
+  local out="$1" zipf
+  if [ "$CONTAINER" != "bundle" ]; then
+    warn "  googleplay: only the split-bundle container is supported"; return 1
+  fi
+  zipf="$(gplay_bundle "$PKG")" || return 1
+  cp "$zipf" "$out"
+}
+
 # ===========================================================================
 # verify_apkm() - the gate for a split APKM bundle (X/Twitter). An APKM is a zip
 # of per-split *.apk files (base + config.<abi>/<dpi>/<lang>) plus metadata.
@@ -552,7 +565,7 @@ main() {
   if [ "$CONTAINER" = "apkm" ]; then
     sources="${X_DL_SOURCES:-apkmirror}"
   elif [ "$CONTAINER" = "bundle" ]; then
-    sources="${CLAUDE_DL_SOURCES:-apkcombo uptodown}"
+    sources="${CLAUDE_DL_SOURCES:-googleplay apkcombo uptodown}"
   else
     sources="${DL_SOURCES:-apkmirror apkpure apkcombo aptoide}"
   fi

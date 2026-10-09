@@ -201,6 +201,12 @@
             },
             "Play videos Music marks unavailable": {
                 "enabled": true
+            },
+            "Seek buttons for long tracks": {
+                "enabled": true,
+                "options": {
+                    "minimumMinutes": 20
+                }
             }
         }
     }

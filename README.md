@@ -50,7 +50,7 @@ and finds the last X build; see [Vantage X](#vantage-x-twitterx) below.
 |---|---|---|---|---|
 | Vantage | YouTube | `app.vantage.youtube` | Vantage | anddea dev, 23-patch curated (`--exclusive`) |
 | Vantage Alt | YouTube | `app.vantage.youtube.alt` | Vantage Alt | anddea dev, same 23-patch set as Vantage |
-| Vantage Music | YouTube Music | `app.vantage.youtube.music` | Vantage Music | anddea dev, default set, plus `Keep playback on activity destroy` from [vantage-patches](https://github.com/pmaxhogan/vantage-patches) |
+| Vantage Music | YouTube Music | `app.vantage.youtube.music` | Vantage Music | anddea dev, default set, plus `Keep playback on activity destroy`, `Play videos Music marks unavailable` and `Seek buttons for long tracks` from [vantage-patches](https://github.com/pmaxhogan/vantage-patches) |
 | Vantage M | YouTube | `app.vantage.youtube.morphe` | Vantage M | Morphe official, default set |
 
 Vantage Alt is the same build as Vantage, identical patch set and options, with a

@@ -10,26 +10,30 @@ installs them and keeps them updated. The YouTube variants need
 replacement for Google Play Services, and the bundled config installs it for you.
 It also builds Claude clones - renamed, recolored copies of the Claude Android
 app for several accounts signed in at once (see [Claude clones](#claude-clones)).
+And it builds Postbox, a locked-down Instagram for talking to friends without the
+feed (see [Postbox](#postbox-instagram)).
 
 ## Install
 
-Each release ships an `obtainium-config.json` that sets up eight apps in one
+Each release ships an `obtainium-config.json` that sets up nine apps in one
 import: MicroG-RE, the four Vantage apps (Vantage, Vantage Alt, Vantage Music,
-Vantage X), and the three Claude clones (Claude 2, Claude 3, Claude 4), each
-already configured with the right APK filter and update settings.
+Vantage X), Postbox, and the three Claude clones (Claude 2, Claude 3, Claude 4),
+each already configured with the right APK filter and update settings.
 
 1. Install [Obtainium](https://github.com/ImranR98/Obtainium/releases).
 2. Download `obtainium-config.json` from the
    [latest release](https://github.com/pmaxhogan/vantage/releases/latest).
 3. In Obtainium, open the menu, choose Import/Export, then Import from file, and
-   pick it. All eight apps appear.
+   pick it. All nine apps appear.
 4. Install MicroG-RE first, since the YouTube-family Vantage apps need it at
    runtime. Then install whichever Vantage apps you want. Vantage X needs no
-   MicroG-RE, but it does replace a stock X install (see below). The Claude
-   clones need no MicroG-RE either, and the first install of each is manual
-   (see [Claude clones](#claude-clones)).
+   MicroG-RE, but it does replace a stock X install (see below). Postbox needs
+   no MicroG-RE and installs next to stock Instagram; it has one manual step
+   after install so Instagram links open in it (see [Postbox](#postbox-instagram)).
+   The Claude clones need no MicroG-RE either, and the first install of each is
+   manual (see [Claude clones](#claude-clones)).
 
-Obtainium auto-updates all eight as new releases land. The Vantage apps track the
+Obtainium auto-updates all nine as new releases land. The Vantage apps track the
 release date and MicroG-RE tracks its version. The settings you'd otherwise have
 to toggle by hand are baked into the patches, so a fresh install already hides
 Shorts, comments, and community posts, opens on Subscriptions, and has DeArrow
@@ -42,7 +46,8 @@ install it by hand from the release assets if you want it.
 Vantage X is in the config, but it builds on its own cadence and publishes its own
 `x-v...` release rather than riding the YouTube one - so the newest release in the
 repo often carries no X APK. Obtainium's fallback-to-older-releases handles that
-and finds the last X build; see [Vantage X](#vantage-x-twitterx) below.
+and finds the last X build; see [Vantage X](#vantage-x-twitterx) below. Postbox
+works the same way with its own `postbox-v...` releases.
 
 ## The four YouTube-family variants
 
@@ -197,6 +202,152 @@ good reason (`Bring back twitter`, `Dynamic color`, `Export all activities`, and
 debug-only `Browse tweet object`). Every X patch is listed explicitly in the options
 files, so flipping any is a one-line change. The target version auto-resolves to the
 newest non-`ripped` compatible build, currently X 12.19.1-release.0.
+
+## Postbox (Instagram)
+
+Postbox is Instagram for people who do not want to be on social media but still
+want to talk to their friends. It is a patched, renamed copy of the Instagram
+Android app that keeps direct messages, stories, your own profile and the links
+people send you, and takes away the places Instagram pulls you into scrolling:
+the home feed, the Reels tab, Explore and Search, and the suggested content
+around them. Like Vantage X it comes from the [piko fork](https://github.com/pmaxhogan/piko)
+and builds on its own track - its own workflow (`build-postbox.yml`) and its own
+GitHub release tagged `postbox-v...`, published with `--latest=false` so the
+repo's "latest release" slot stays on a YouTube build.
+
+| Variant | App | Package | Label | Patch source |
+|---|---|---|---|---|
+| Postbox | Instagram | `app.vantage.postbox` (stock Instagram is `com.instagram.android`) | Postbox | piko fork (ten piko patches + the four Postbox patches, `--exclusive`) |
+
+Postbox installs **alongside** stock Instagram, because piko's `Clone` patch gives
+it its own package and label, and it is signed with the Vantage key like every
+other app here. Nothing has been run on a phone yet: no Postbox build has been
+installed and logged in on a device, so everything below describes what the
+patches are designed to do, not what has been checked by hand.
+
+### What you get, and what is blocked
+
+Designed to stay available:
+
+- **Messages**, in full: the inbox, group chats, replies, and the posts and reels
+  people send you, opened as single items. The app opens on this tab.
+- **Home reduced to the stories tray**, with your own-story "+" and the header's
+  create "+" and notifications heart. The feed under the tray is empty.
+- **Your own profile** (grid, followers, following), posting stories and posts, and
+  the account pages: login, logout, 2FA and settings.
+- **Links people send you**: a post, reel, story, profile or chat link opens as a
+  single item with nothing scrollable beneath it. Other people's profiles open
+  too (header, bio, highlights, follower and following lists); hiding the post
+  and reel grid on someone else's profile is not part of the current patch set.
+
+Designed to be blocked, and how:
+
+| Surface | How it is closed | Patch |
+|---|---|---|
+| Bottom bar, Reels and Search tabs | The bar is fixed to Home, Messages and Profile and filtered again on every path where piko would fall back to Instagram's own tab list | `Postbox settings lock` |
+| Settings toggles | Explore, Reels scrolling, suggested content, suggested accounts and swipe-to-create are forced on at build time, so no setting, backup restore or Focus Lock state can switch them back; the dead rows are removed from the settings screen | `Postbox settings lock` |
+| Startup intents | A startup-tab extra naming Reels or Search lands on Messages instead | `Postbox settings lock` |
+| Launcher long-press shortcuts | Static shortcuts are stripped from the manifest, the ones Instagram publishes at runtime are cleared on every launch and re-checked once a minute, and shortcuts already pinned to the home screen are disabled | `Postbox shortcut lock` |
+| Deep links and notification taps | Links and intents for Home, Explore, the Reels tab, search, hashtag and location pages land on Messages; single items, DMs and the account pages open as usual | `Postbox link router` |
+| Home feed, Explore, Reels tab, "more like this" | The requests behind them fail, so the surface renders empty however it was reached, and a few more suggested and ad units are dropped at the parser | `Postbox network block` |
+| Suggested accounts, swipe-to-create, Reels paging | piko's own patches, enabled | `Disable discover people`, `Disable swipe to create`, `Disable Reels scrolling` |
+
+Left out on purpose: piko's download, anonymous-viewing (ghost mode), typing-status,
+read-receipt, ad-block, theme and font patches, and Focus Lock (its 24-hour cool-off
+is a bypass of the lock-down). They are on the forbidden list the build asserts
+against (see below).
+
+### Installing
+
+1. Import `obtainium-config.json` from a release as in [Install](#install) and
+   install **Postbox** from Obtainium. Obtainium keys on the release date and
+   falls back to older releases, so it finds the last `postbox-v...` build even
+   when the newest release in the repo is a YouTube one.
+2. Open Postbox and log in yourself. Nothing in this repo ever holds Instagram
+   credentials.
+3. One-time step so Instagram links open in Postbox: Instagram's
+   `assetlinks.json` lists only Meta's own package and signing cert, so Android can
+   never auto-verify a clone for instagram.com links. On Android 12 and later, open
+   Settings, Apps, Postbox, **Open by default**, and add the instagram.com links by
+   hand (the screens differ a little between phones). Stock Instagram, if it is
+   installed too, is verified for those links and will usually keep opening them
+   until you do.
+
+### Account risk
+
+Using a modified client is against Instagram's terms and carries a small, nonzero
+risk that the account gets suspended; that is why Postbox uses only structural
+blocking patches and none of the download or ghost-mode ones that some users of
+the upstream patch set report suspensions around.
+
+### How it is built and released
+
+`.github/workflows/build-postbox.yml` runs `scripts/build-postbox.sh`, the same
+shape as the X build:
+
+1. Resolve the piko fork's latest non-prerelease `.mpp` and the newest morphe-cli
+   that loads it.
+2. Resolve the Instagram version. It is whatever the bundle supports (piko pins
+   exactly one version, 447.0.0.55.81 today, arm64-v8a), unless `IG_VERSION_PIN`
+   in `config/build.env` says otherwise.
+3. Get the stock split APKM (see [Stock-APK download](#stock-apk-download)) and run
+   the signing-cert gate on it.
+4. Patch with `config/postbox-options.json`, then `assert.sh variant` with the
+   Postbox lists, then publish.
+
+There is **no cron**. A release is cut by any of three triggers:
+
+- a push to `main` that touches a Postbox build file (the workflow, the build
+  scripts, `config/build.env`, `config/expected-signatures.txt`,
+  `config/postbox-options.json` or `config/assertions/postbox-*`);
+- a `repository_dispatch` of type `piko-release`, which the fork's `build-mpp.yml`
+  sends after it publishes a new bundle (it needs a `VANTAGE_DISPATCH_TOKEN`
+  secret on the fork and skips with a warning while that is absent);
+- a manual run of the workflow.
+
+Push and dispatch runs always build; only a manual run honours the
+skip-if-piko-unchanged check, and its `force` box overrides that too. The tag is
+`postbox-v<YYYY.MM.DD>-piko<ver>`, never "latest", and the assets are
+`postbox-<igver>.apk`, `built-versions-postbox.json` and `obtainium-config.json`.
+A second build on the same day with the same piko version updates that release in
+place; Obtainium keys on the release date, so it will not offer that rebuild to
+phones that already have the day's build.
+
+A Dependabot merge made by the auto-merge workflow does not trigger push
+workflows, so a bot merge releases nothing by itself; the next human push to a
+Postbox path does.
+
+### Patches and assertion lists
+
+The patch selection is entirely `config/postbox-options.json`: every patch in the
+bundle is listed with an explicit `enabled`, and the build passes `--exclusive`, so
+a patch that piko turns on by default later cannot sneak in. The enabled set is
+piko's `Add settings`, `Clone` (package `app.vantage.postbox`, label `Postbox`),
+`Customize navigation bar`, `Disable explore`, `Disable Reels scrolling`,
+`Hide suggested content`, `Disable discover people`, `Disable swipe to create`,
+`Sanitize share links` and `Change version code` (so a store can never offer the
+clone an update), plus the four Postbox-only patches that live in the
+fork (all default off in the bundle, so a plain piko user never gets them):
+
+| Patch | What it does |
+|---|---|
+| Postbox settings lock | Fixes the bottom bar and the blocking prefs, guards the startup tab, prunes the settings screen. |
+| Postbox shortcut lock | Removes launcher shortcuts: static, dynamic and pinned. |
+| Postbox link router | Sends Home, Explore, Reels-tab, search, hashtag and location links and intents to Messages. |
+| Postbox network block | Fails the requests behind the feed, Explore, Reels and "more like this". |
+
+The Postbox patches carry no fingerprints for Instagram's obfuscated code. They edit
+piko's own extension code by class and method name, so they follow Instagram
+version bumps for free, and a piko rename fails the build instead of shipping an
+unlocked app. `traceNetwork`, an option of the network block that logs request
+paths for endpoint discovery, is never enabled in a release: `build-postbox.sh`
+refuses to build when any enabled option whose key contains `test`, `debug` or
+`trace` is on, or when a patch named in `postbox-forbidden.txt` is enabled.
+
+The assertion lists are in `config/assertions/`: `postbox-nonnegotiable.txt` (the
+ten piko patches and the four Postbox patches that must apply),
+`postbox-forbidden.txt` (patches that must not apply) and
+`postbox-inert-allowlist.txt` (empty on 447.0.0.55.81). Edit those, not the script.
 
 ## Claude clones
 
@@ -382,6 +533,13 @@ and publishes a release tagged `claude-v<ver>-vp<ver>` (with `--latest=false`,
 same reason as X). `lib.sh`, `download-apk.sh`, and `assert.sh` are shared with
 the other builds; `build-claude.sh` is its own orchestrator.
 
+Postbox builds separately as well, but on events instead of a schedule.
+`.github/workflows/build-postbox.yml` runs `scripts/build-postbox.sh` when a
+Postbox build file is pushed to `main`, when the piko fork announces a new bundle
+with a `repository_dispatch`, or by hand; state is the newest `postbox-v...`
+release's `built-versions-postbox.json`, and the YouTube and X skip logic ignore
+its tags. See [Postbox](#postbox-instagram) for the details.
+
 ### CI guards
 
 morphe-cli only warns on a renamed or removed patch, and it counts a
@@ -440,7 +598,7 @@ back to `stock-cache`, so the cache maintains itself. `build.yml` installs
 (see `config/build.env`).
 
 Assets are named `<package>-<version>.<container>`, where the container is `apk`
-for YouTube/Music, `apkm` for X (a split bundle patched directly), and
+for YouTube/Music, `apkm` for X and Instagram (a split bundle patched directly), and
 `merged.apk` for Claude (a split bundle merged into one APK before caching - see
 below). X is fetched only from APKMirror, and its gate extracts every nested
 split and checks each one's signing cert, so a mirror that re-signs the bundle
@@ -455,6 +613,19 @@ gh release upload stock-cache -R <owner>/vantage \
   com.google.android.apps.youtube.music-<ver>.apk \
   com.twitter.android-<ver>.apkm
 ```
+
+Instagram (`com.instagram.android`, for [Postbox](#postbox-instagram)) is an APKM
+like X, but neither APKMirror nor APKPure can be used for it today: both serve
+Instagram's pages behind an interactive Cloudflare challenge that the `curl_cffi`
+resolvers cannot pass, and they do not try to. So the Postbox build reads the stock
+APKM from the `stock-cache` release, as `com.instagram.android-<ver>.apkm`, and
+nothing else. `download-apk.sh` trusts a cache hit as is, so `build-postbox.sh`
+runs the APKM gate on it itself before patching: every split must be signed by one
+of Instagram's two signing certs in `config/expected-signatures.txt` (taken from
+`instagram.com/.well-known/assetlinks.json`), and the base must report the right
+package and version. A new Instagram version therefore needs a new cache entry
+before Postbox can build it, and a missing or failing entry stops the build rather
+than falling back to a mirror.
 
 Claude (`com.anthropic.claude`) ships no single universal APK either, but unlike
 X, no mirror serves it as a genuine APKM - APKMirror bot-blocks this app's
@@ -479,6 +650,10 @@ fallback in case that ever changes, not because it works today.
 .github/workflows/build.yml        cron + dispatch(force); Java 21; runs build.sh; one Release
 .github/workflows/build-x.yml      cron + dispatch(force); runs build-x.sh; X release (x-v*)
 .github/workflows/build-claude.yml cron + dispatch(force); runs build-claude.sh; Claude release (claude-v*)
+.github/workflows/build-postbox.yml push (Postbox paths) + piko-release dispatch + manual; runs build-postbox.sh; Postbox release (postbox-v*)
+.github/workflows/ci.yml           secret-free PR/push checks (shellcheck, bash -n, py_compile, jq, generator dry run)
+.github/workflows/dependabot-auto-merge.yml  after CI is green: squash-merge minor/patch bot PRs, hold majors
+.github/dependabot.yml             weekly: github-actions + pip
 scripts/
   lib.sh                      shared helpers (logging, keystore, SDK-tool finder, sha256, versions)
   resolve-versions.sh         upstream versions + skip decision (state = latest Release)
@@ -491,18 +666,22 @@ scripts/
   build.sh                    YouTube-family orchestrator (also runnable locally)
   build-x.sh                  X (Twitter) orchestrator, isolated; its own x-v* release
   build-claude.sh             Claude clones orchestrator, isolated; its own claude-v* release
+  build-postbox.sh            Postbox (Instagram) orchestrator, isolated; its own postbox-v* release
   gen-obtainium-config.py     regenerates obtainium-config.json (edit here, not the JSON)
 config/
   youtube-options.json        anddea YouTube, 23 enabled
   music-options.json          anddea YouTube Music, default set + branding
   morphe-youtube-options.json Morphe YouTube, default set + Custom branding + package
   x-options-max*.json         piko X, four files differing only in the daily-limit ceiling
+  postbox-options.json        piko Instagram: every bundle patch listed, Postbox set enabled (--exclusive)
   build.env                   pinned morphe-cli/APKEditor, channel selectors, packages, version pins, Claude clone config
   expected-signatures.txt     genuine vendor signing certs the stock download gate accepts
-  assertions/*.txt            non-negotiable names, forbidden names, inert allowlists, expected count
+  assertions/*.txt            non-negotiable names, forbidden names, inert allowlists, expected count (postbox-* for Postbox)
   icon/                       custom icon sets per variant
   settings/                   golden RVX settings (optional reset files)
-obtainium-config.json         one-tap Obtainium onboarding (MicroG-RE + 4 Vantage apps + 3 Claude clones)
+obtainium-config.json         one-tap Obtainium onboarding (MicroG-RE + 4 Vantage apps + Postbox + 3 Claude clones)
+requirements.txt              Python deps the workflows pip-install (curl_cffi), so Dependabot can see them
+.claude/CLAUDE.md             notes for agents working in this repo (Postbox pipeline, traps)
 keystore/                     README only; the key lives in the VANTAGE_KEYSTORE_B64 secret
 ```
 
@@ -553,3 +732,12 @@ bash scripts/build.sh --force                 # build + stage in build/release
   builds until a new one is minted (`apkeep -e <email> --oauth-token ...`, see
   apkeep's USAGE-google-play.md).
   Its pinned signing cert has the same rotation caveat as X's.
+- Postbox has not been run on a device yet, and what it blocks is designed, not
+  observed: the patches edit piko's own extension code, so a green build proves the
+  bundle applied and the APK is signed, not that a given screen is closed. Not
+  yet in the patch set: hiding the post and reel grid on other people's profiles, and
+  the feed-switcher dropdown on Home.
+  It is also effectively cache-only for Instagram: the stock APKM must already be in
+  `stock-cache` for the pinned version, so an Instagram version bump (which follows
+  the piko fork's supported version) waits for a new cache entry. Its pinned signing
+  certs, taken from `instagram.com/.well-known/assetlinks.json`, rotate like X's.

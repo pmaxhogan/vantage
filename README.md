@@ -616,18 +616,22 @@ gh release upload stock-cache -R <owner>/vantage \
   com.twitter.android-<ver>.apkm
 ```
 
-Instagram (`com.instagram.android`, for [Postbox](#postbox-instagram)) is an APKM
-like X, but neither APKMirror nor APKPure can be used for it today: both serve
-Instagram's pages behind an interactive Cloudflare challenge that the `curl_cffi`
-resolvers cannot pass, and they do not try to. So the Postbox build reads the stock
-APKM from the `stock-cache` release, as `com.instagram.android-<ver>.apkm`, and
-nothing else. `download-apk.sh` trusts a cache hit as is, so `build-postbox.sh`
-runs the APKM gate on it itself before patching: every split must be signed by one
-of Instagram's two signing certs in `config/expected-signatures.txt` (taken from
-`instagram.com/.well-known/assetlinks.json`), and the base must report the right
-package and version. A new Instagram version therefore needs a new cache entry
-before Postbox can build it, and a missing or failing entry stops the build rather
-than falling back to a mirror.
+Instagram (`com.instagram.android`, for [Postbox](#postbox-instagram)) is a split
+bundle like X. APKMirror and apkpure.net both serve Instagram's pages behind an
+interactive Cloudflare challenge that the `curl_cffi` resolvers cannot pass, and
+they do not try to. The working source is `apkpure_apkeep`: [apkeep](https://github.com/EFForg/apkeep)'s
+APKPure source, which asks APKPure's app API for the exact version and gets an XAPK
+(`com.instagram.android.apk` plus `config.*.apk` splits). morphe-cli and the gate
+read that the same way as an APKM, and it is cached as
+`com.instagram.android-<ver>.apkm`. apkeep refuses APKPure unless told
+`acknowledge_dangers=true`, because APKPure has shipped modified apps in the past.
+That flag is set in `src_apkpure_apkeep` and nowhere else, and what makes it
+acceptable is the gate, which runs twice (in `download-apk.sh` on the download, and
+in `build-postbox.sh` on whatever the cache returned): every split must be signed
+by one of Instagram's two signing certs in `config/expected-signatures.txt` (from
+`instagram.com/.well-known/assetlinks.json`, confirmed against the real 447.0.0.55.81
+splits), the base must report the right package and version, and the source also
+refuses a base built for another ABI. A file that fails stops the build.
 
 Claude (`com.anthropic.claude`) ships no single universal APK either, but unlike
 X, no mirror serves it as a genuine APKM - APKMirror bot-blocks this app's
@@ -740,7 +744,9 @@ bash scripts/build.sh --force                 # build + stage in build/release
   profile-grid patch is the least certain: its view names and request paths have not
   been checked against the real APK yet. Not yet in the patch set: hiding the
   feed-switcher dropdown on Home.
-  It is also effectively cache-only for Instagram: the stock APKM must already be in
-  `stock-cache` for the pinned version, so an Instagram version bump (which follows
-  the piko fork's supported version) waits for a new cache entry. Its pinned signing
-  certs, taken from `instagram.com/.well-known/assetlinks.json`, rotate like X's.
+  Its stock bundle has one live source (APKPure through apkeep), so an APKPure
+  outage or API change stops Postbox on the first build of a new Instagram version;
+  builds of a version already in `stock-cache` are unaffected. APKPure serves one
+  variant per version (xxxhdpi, with native libraries in the base, for
+  447.0.0.55.81), whose version code differs from the one piko lists; the patches
+  apply to it all the same. Its pinned signing certs rotate like X's.

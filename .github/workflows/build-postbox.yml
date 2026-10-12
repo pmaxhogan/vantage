@@ -1,8 +1,9 @@
 name: Build Postbox
 
 # Separate from build.yml and build-x.yml on purpose: Postbox (patched Instagram)
-# relies on the stock-cache for its APKM (APKMirror's Instagram pages are behind
-# an interactive Cloudflare challenge) and tracks the piko fork, which moves on
+# takes its stock bundle from the stock-cache or, on a miss, from APKPure via
+# apkeep (APKMirror's Instagram pages are behind an interactive Cloudflare
+# challenge), and tracks the piko fork, which moves on
 # its own schedule, so it runs on its own and publishes its own "postbox-v..."
 # release. A failure here never blocks the YouTube nightly or the X build.
 #

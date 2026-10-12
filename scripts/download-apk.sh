@@ -316,6 +316,52 @@ src_googleplay() {
   cp "$zipf" "$out"
 }
 
+# --- APKPure via apkeep (Instagram) -----------------------------------------
+# Instagram's pages on APKMirror and on apkpure.net sit behind an interactive
+# Cloudflare challenge, so the curl_cffi resolvers cannot reach them. apkeep's
+# apk-pure source uses APKPure's app API instead and serves a version-pinned
+# XAPK: a zip of "<pkg>.apk" plus "config.*.apk" splits, which verify_apkm()
+# and morphe-cli both read exactly like an APKM.
+#
+# apkeep refuses this source without acknowledge_dangers=true because APKPure
+# has shipped modified apps before. Max accepted that for Instagram on
+# 2026-10-12 on one condition, which is the gate: nothing from here is used
+# unless EVERY split verifies against Instagram's own signing certs
+# (config/expected-signatures.txt), and a modified split cannot carry those.
+# Keep the flag in this function only.
+src_apkpure_apkeep() {
+  local out="$1" bin tmp f aapt base abis
+  if [ "$CONTAINER" != "apkm" ]; then
+    warn "  apkpure_apkeep: only the split-bundle (apkm) container is supported"; return 1
+  fi
+  bin="$(apkeep_bin "$VANTAGE_ROOT/build/gplay")" || return 1
+  tmp="$(mktemp -d)"
+  log "  apkpure_apkeep: apkeep $PKG@$VER (apk-pure)"
+  if ! "$bin" -a "$PKG@$VER" -d apk-pure -o acknowledge_dangers=true "$tmp" >&2; then
+    warn "  apkpure_apkeep: apkeep failed"; rm -rf "$tmp"; return 1
+  fi
+  f="$(find "$tmp" -type f -name '*.xapk' | head -1)"
+  if [ -z "$f" ]; then
+    warn "  apkpure_apkeep: no .xapk came back (got: $(cd "$tmp" && find . -type f | tr '\n' ' ')) - a bare APK is not a split bundle"
+    rm -rf "$tmp"; return 1
+  fi
+  # APKPure picks the variant. Refuse one built for another ABI: the gate checks
+  # signer, package and version, not the native libraries.
+  aapt="$(find_sdk_tool aapt || find_sdk_tool aapt.exe || true)"
+  if [ -z "$aapt" ]; then
+    warn "  apkpure_apkeep: aapt not found - cannot check the ABI"; rm -rf "$tmp"; return 1
+  fi
+  base="$tmp/base-check.apk"
+  if ! unzip -p "$f" "$PKG.apk" > "$base" 2>/dev/null || [ ! -s "$base" ]; then
+    warn "  apkpure_apkeep: XAPK has no $PKG.apk base"; rm -rf "$tmp"; return 1
+  fi
+  abis="$("$aapt" dump badging "$base" 2>/dev/null | grep -E '^native-code:' || true)"
+  if ! grep -qF "'$ARCH'" <<<"$abis"; then
+    warn "  apkpure_apkeep: base is not built for $ARCH (${abis:-no native-code line})"; rm -rf "$tmp"; return 1
+  fi
+  cp "$f" "$out"; rm -rf "$tmp"
+}
+
 # ===========================================================================
 # verify_apkm() - the gate for a split APKM bundle (X/Twitter). An APKM is a zip
 # of per-split *.apk files (base + config.<abi>/<dpi>/<lang>) plus metadata.

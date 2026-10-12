@@ -156,14 +156,15 @@ log "target Instagram version: $IG_VER"
 "$VANTAGE_ROOT/scripts/assert.sh" keystore-preflight "$KEYSTORE"
 
 # ---- download the stock split APKM ----------------------------------------
-# Checks the stock-cache release first (com.instagram.android-<ver>.apkm), which
-# is how this normally succeeds while APKMirror's Instagram pages are challenge-
-# gated.
+# Checks the stock-cache release first (com.instagram.android-<ver>.apkm). On a
+# miss the sources in IG_DL_SOURCES run (apkeep's APKPure source, which returns
+# an XAPK; morphe-cli and the gate read it like an APKM) and the accepted file
+# is uploaded to the cache.
 STOCK_APKM="$STOCK/${IG_PACKAGE}-${IG_VER}.apkm"
 "$VANTAGE_ROOT/scripts/download-apk.sh" "$IG_PACKAGE" "$IG_VER" "${IG_ARCH:-arm64-v8a}" "$STOCK_APKM" apkm
 
 # download-apk.sh trusts a stock-cache hit as is, because it only ever uploads
-# files that passed its gate. Instagram's cache entry is seeded by hand, so run
+# files that passed its gate. A cache entry can also be put there by hand, so run
 # the APKM gate here on whatever came back: every split must be signed by one of
 # Instagram's certs in config/expected-signatures.txt and the base must report
 # this package and version. Sourcing download-apk.sh only defines its functions.
@@ -187,12 +188,12 @@ log "=== Postbox (Instagram $IG_VER, package $POSTBOX_PACKAGE) ==="
 
 # Package and label are both pinned (Clone sets them). No --expected-count: the
 # applied set also holds whatever dependency patches the enabled ones pull in.
-# The min-size floor is a conservative guess for an arm64 Instagram APKM, to be
-# tightened once a real build exists.
+# The min-size floor sits well under the real build (136 MB for 447.0.0.55.81,
+# arm64): a truncated or stripped APK trips it, a normal version bump does not.
 "$VANTAGE_ROOT/scripts/assert.sh" variant --variant postbox --result "$RESULT" --log "$LOGF" \
   --apk "$OUT/$OUTAPK" --package "$POSTBOX_PACKAGE" --label "$POSTBOX_LABEL" \
   --nonneg "$A/postbox-nonnegotiable.txt" --inert "$A/postbox-inert-allowlist.txt" \
-  --forbidden "$A/postbox-forbidden.txt" --min-size-mb "40"
+  --forbidden "$A/postbox-forbidden.txt" --min-size-mb "100"
 
 cp "$OUT/$OUTAPK" "$OUTDIR/$OUTAPK"
 log "staged $OUTDIR/$OUTAPK"

@@ -40,9 +40,9 @@ com.anthropic.claude  305a1e8a432e5ec0c612b2465359c3b88e3c95d6253599ac6088562b81
 
 # Instagram (com.instagram.android). Meta's two app signing certs, taken from the
 # first-party https://www.instagram.com/.well-known/assetlinks.json entry for
-# com.instagram.android on 2026-10-11. NOT yet confirmed against a real
-# downloaded base split: the orchestrator still has to run `apksigner verify
-# --print-certs` on the genuine com.instagram.android 447.0.0.55.81 base.apk and
-# check its digest is one of these before the first release is trusted.
+# com.instagram.android on 2026-10-11. Confirmed 2026-10-12 with `apksigner
+# verify --print-certs` on the 447.0.0.55.81 arm64-v8a base and its xxxhdpi
+# split (versionCode 385411988): both carry both certs, 3a10... as the signer
+# for SDK 33+ and 5f3e... as the signer for SDK 24-32 (a v3.1 key rotation).
 com.instagram.android  5f3e50f435583c9ae626302a71f7340044087a7e2c60adacfc254205a993e305
 com.instagram.android  3a10c50c18ba937506c2875e9047be74f8fd8b86fae2ff9feaa50a81fcb4c014

@@ -70,23 +70,31 @@ Prove it fired, do not infer it:
   strips the `[versionCodes: ...]` suffix with its last `sed` expression. If a
   morphe-cli release changes that format, the version resolves to junk and the
   download step fails on a nonsense file name; look there first.
-- The stock APKM must be in the `stock-cache` release as
-  `com.instagram.android-<ver>.apkm` before the build can run. APKMirror and APKPure
-  both put Instagram behind an interactive Cloudflare challenge the `curl_cffi`
-  resolvers cannot pass (and must not try to), so there is no live-download fallback.
-  How a cache entry gets seeded for a new version was still being decided with Max on
-  2026-10-11: do not invent a procedure; ask.
+- The stock bundle comes from `stock-cache` (`com.instagram.android-<ver>.apkm`) or,
+  on a miss, from `src_apkpure_apkeep` in `download-apk.sh`: `apkeep -a <pkg>@<ver>
+  -d apk-pure -o acknowledge_dangers=true`, which returns an XAPK and seeds the cache
+  after the gate passes. Max chose that source on 2026-10-12 with the cert gate as
+  the condition; keep the flag in that one function and never loosen the gate to
+  make a download pass. APKMirror and apkpure.net web pages both put Instagram behind
+  an interactive Cloudflare challenge the `curl_cffi` resolvers cannot pass (and must
+  not try to); `apkmirror` stays second in `IG_DL_SOURCES` only in case that lifts.
+  CI gets apkeep from the pinned `APKEEP_URL`/`APKEEP_SHA256` in `config/build.env`.
+- The XAPK is not the variant piko lists: APKPure's 447.0.0.55.81 is versionCode
+  385411988 (arm64-v8a, libraries in the base, one `config.xxxhdpi` split), piko's
+  `Constants.kt` names 385311895. morphe-cli 1.18.1 does not check the version code
+  and all 15 patches apply. If a later cli starts enforcing it, that is where a
+  "not compatible" error comes from; do not reach for `--force` without reading why.
 - `build-postbox.sh` runs `verify_apkm` on whatever came back, because
   `download-apk.sh` trusts a cache hit: every split must be signed by one of the two
   Instagram certs in `config/expected-signatures.txt` and the base must report the
   right package and version. Those certs came from
-  `https://www.instagram.com/.well-known/assetlinks.json`; the comment in that file
-  says they were NOT yet confirmed against a real downloaded base split
-  (`apksigner verify --print-certs`). Confirm that the first time a real APKM is in hand.
+  `https://www.instagram.com/.well-known/assetlinks.json` and were confirmed with
+  `apksigner verify --print-certs` on the real splits on 2026-10-12 (both certs sign
+  every split: one for SDK 33+, one for SDK 24-32).
 - After a bump also check: `postbox-nonnegotiable.txt` names still match piko's patch
   names exactly (an upstream rename should fail the build, that is the point),
-  `postbox-inert-allowlist.txt` (empty on 447.0.0.55.81), and the `--min-size-mb 40`
-  floor in `build-postbox.sh`, a guess to tighten once a real build exists.
+  `postbox-inert-allowlist.txt` (empty on 447.0.0.55.81), and the `--min-size-mb 100`
+  floor in `build-postbox.sh` (the 447.0.0.55.81 build is 136 MB).
 
 ### Options-file invariants (`config/postbox-options.json`)
 

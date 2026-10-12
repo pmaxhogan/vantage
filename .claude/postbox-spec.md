@@ -163,8 +163,13 @@ patch cannot sneak in).
 ### 4.1 Toolchain
 - Everything is **Morphe** (ReVanced fork): morphe-cli (`MorpheApp/morphe-cli`,
   floats to latest stable with last-good fallback, `vantage/scripts/lib.sh:151-188`),
-  `.mpp` bundles, Gradle plugin `app.morphe.patches` 1.3.3 and
-  `app.morphe:morphe-patches-library` (piko `gradle/libs.versions.toml`).
+  `.mpp` bundles. piko pins Gradle plugin `app.morphe.patches` 1.3.4,
+  `morphe-patcher` 1.14.1 and `morphe-patches-library` 1.6.0 (piko
+  `gradle/libs.versions.toml`, `settings.gradle.kts`); vantage-patches and
+  the `~/code/revanced-patches` RVX fork are on older patcher versions with a
+  slightly different `Compatibility`/`AppTarget` API, so copy piko's shapes,
+  not theirs. `~/code/revanced-patches` has zero Instagram code and is not
+  used by this quest.
   Registry is GitHub Packages (`maven.pkg.github.com/MorpheApp/registry`) and
   needs `GITHUB_ACTOR` + `GITHUB_TOKEN` (`read:packages`) to build. Local JDK:
   Temurin 21 at `/Library/Java/JavaVirtualMachines/temurin-21.jdk`; the fork's

@@ -37,3 +37,12 @@ com.twitter.android  0fd9a0cfb07b65950997b4eaebdc53931392391aa406538a3b04073bc2c
 # on-device split apks pulled from a genuine Play-installed copy of the app.
 # Mirrored in config/build.env as CLAUDE_EXPECTED_SIG_SHA256 for documentation.
 com.anthropic.claude  305a1e8a432e5ec0c612b2465359c3b88e3c95d6253599ac6088562b818b64a0
+
+# Instagram (com.instagram.android). Meta's two app signing certs, taken from the
+# first-party https://www.instagram.com/.well-known/assetlinks.json entry for
+# com.instagram.android on 2026-10-11. NOT yet confirmed against a real
+# downloaded base split: the orchestrator still has to run `apksigner verify
+# --print-certs` on the genuine com.instagram.android 447.0.0.55.81 base.apk and
+# check its digest is one of these before the first release is trusted.
+com.instagram.android  5f3e50f435583c9ae626302a71f7340044087a7e2c60adacfc254205a993e305
+com.instagram.android  3a10c50c18ba937506c2875e9047be74f8fd8b86fae2ff9feaa50a81fcb4c014

@@ -50,8 +50,10 @@ def vantage_addl(regex):
         "appAuthor": "",
     }
 
-# MicroG-RE: normal semver releases, single universal APK -> standard versionName
-# detection, arch filter OFF, one APK via regex.
+# MicroG-RE: normal semver releases -> standard versionName detection, arch
+# filter OFF, one APK via regex. The regex is anchored to the universal APK
+# (microg-<ver>.apk): the release also carries per-ABI splits, and the 32-bit one
+# breaks stream fetching on a 64-bit phone.
 microg_addl = {
     "includePrereleases": False,
     "fallbackToOlderReleases": True,
@@ -66,7 +68,7 @@ microg_addl = {
     "versionDetection": True,
     "releaseDateAsVersion": False,
     "useVersionCodeAsOSVersion": False,
-    "apkFilterRegEx": r"microg-.*\.apk",
+    "apkFilterRegEx": r"^microg-[0-9][0-9.]*(-dev\.[0-9]+)?\.apk$",
     "invertAPKFilter": False,
     "autoApkFilterByArch": False,
     "appName": "",
@@ -85,6 +87,11 @@ apps = [
     # vantage_addl) walks back to the last X one.
     app("com.twitter.android", "Vantage X", "pmaxhogan", VANTAGE_URL,
         vantage_addl(r"vantage-x-.*-max2h\.apk")),
+    # Postbox (patched Instagram) also ships on its own "postbox-v..." release
+    # cadence, so the same fallbackToOlderReleases walk-back applies. The Obtainium
+    # app id is the clone's package, not com.instagram.android.
+    app("app.vantage.postbox", "Postbox", "pmaxhogan", VANTAGE_URL,
+        vantage_addl(r"postbox-.*\.apk")),
     app("app.revanced.android.gms", "MicroG-RE", "MorpheApp", MICROG_URL,
         microg_addl),
     # Claude clones: several accounts signed in at once. Each is a renamed,

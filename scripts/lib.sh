@@ -233,10 +233,14 @@ resolve_target_version() {
   # string like "12.2.0-release.0" survives for the versionName gate - stripping it
   # to "12.2.0" would never match the real APK. Drop "-ripped" targets: those are
   # repackaged, non-vendor-signed builds that can't pass the signing-cert gate.
+  # Instagram lines carry a per-ABI versionCode block between the version and the
+  # count ("447.0.0.55.81 [versionCodes: ARM64_V8A=385311895] (52 patches)"); the
+  # last sed expression drops it. Lines without that block (X, YouTube, Music) do
+  # not match it, so their result is unchanged.
   local maxc; maxc="$(grep -oE '\(([0-9]+) patches\)' <<<"$out" | grep -oE '[0-9]+' | sort -n | tail -1)"
   [ -n "$maxc" ] || die "list-versions produced no versions for $pkg"
   grep -E "\($maxc patches\)" <<<"$out" \
-    | sed -E 's/^[[:space:]]+//; s/[[:space:]]*\([0-9]+ patches\).*$//' \
+    | sed -E 's/^[[:space:]]+//; s/[[:space:]]*\([0-9]+ patches\).*$//; s/[[:space:]]*\[versionCodes:[^]]*\]//' \
     | grep -viE 'ripped' | sort -V | tail -1
 }
 

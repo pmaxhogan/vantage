@@ -1,0 +1,437 @@
+[
+  {
+    "meta": {
+      "created_at": "2026-10-11T00:00:00Z",
+      "source": "patches-3.10.0-vantage.2.mpp"
+    },
+    "patches": {
+      "Add ability to copy media link": {
+        "enabled": false
+      },
+      "Add settings": {
+        "enabled": true
+      },
+      "Allow user network certificate": {
+        "enabled": false
+      },
+      "Block redirecting to X Lite": {
+        "enabled": false
+      },
+      "Block update screen": {
+        "enabled": false
+      },
+      "Bring back twitter": {
+        "enabled": false
+      },
+      "Change app icon": {
+        "enabled": false
+      },
+      "Change like animation": {
+        "enabled": false
+      },
+      "Change version code": {
+        "enabled": true
+      },
+      "Clear tracking params": {
+        "enabled": false
+      },
+      "Clone": {
+        "enabled": true,
+        "options": {
+          "packageName": "app.vantage.postbox",
+          "appName": "Postbox"
+        }
+      },
+      "Control video auto scroll": {
+        "enabled": false
+      },
+      "Copy comment": {
+        "enabled": false
+      },
+      "Custom download folder": {
+        "enabled": false
+      },
+      "Custom emoji font": {
+        "enabled": false
+      },
+      "Custom font": {
+        "enabled": false
+      },
+      "Custom share menu": {
+        "enabled": false
+      },
+      "Custom sharing domain": {
+        "enabled": false
+      },
+      "Customise post font size": {
+        "enabled": false
+      },
+      "Customise story ring size": {
+        "enabled": false
+      },
+      "Customise story timestamp": {
+        "enabled": false
+      },
+      "Customize default reply sorting": {
+        "enabled": false
+      },
+      "Customize explore tabs": {
+        "enabled": false
+      },
+      "Customize Inline action Bar items": {
+        "enabled": false
+      },
+      "Customize navigation bar": {
+        "enabled": true
+      },
+      "Customize Navigation Bar items": {
+        "enabled": false
+      },
+      "Customize notification tabs": {
+        "enabled": false
+      },
+      "Customize profile tabs": {
+        "enabled": false
+      },
+      "Customize search suggestions": {
+        "enabled": false
+      },
+      "Customize search tab items": {
+        "enabled": false
+      },
+      "Customize side bar items": {
+        "enabled": false
+      },
+      "Customize timeline top bar": {
+        "enabled": false
+      },
+      "Daily time limit": {
+        "enabled": false
+      },
+      "Delete from database": {
+        "enabled": false
+      },
+      "Disable ads": {
+        "enabled": false
+      },
+      "Disable analytics": {
+        "enabled": false
+      },
+      "Disable auto timeline scroll on launch": {
+        "enabled": false
+      },
+      "Disable chirp font": {
+        "enabled": false
+      },
+      "Disable comments": {
+        "enabled": false
+      },
+      "Disable discover people": {
+        "enabled": true
+      },
+      "Disable double tap like": {
+        "enabled": false
+      },
+      "Disable explore": {
+        "enabled": true
+      },
+      "Disable highlights": {
+        "enabled": false
+      },
+      "Disable Reels scrolling": {
+        "enabled": true
+      },
+      "Disable screenshot detection": {
+        "enabled": false
+      },
+      "Disable stories": {
+        "enabled": false
+      },
+      "Disable story flipping": {
+        "enabled": false
+      },
+      "Disable swipe to create": {
+        "enabled": true
+      },
+      "Disable typing status": {
+        "enabled": false
+      },
+      "Disable video autoplay": {
+        "enabled": false
+      },
+      "Download media": {
+        "enabled": false
+      },
+      "Download patch": {
+        "enabled": false
+      },
+      "Download voice message": {
+        "enabled": false
+      },
+      "Dynamic color": {
+        "enabled": false
+      },
+      "Enable debug menu for posts": {
+        "enabled": false
+      },
+      "Enable force HD videos": {
+        "enabled": false
+      },
+      "Enable PiP mode automatically": {
+        "enabled": false
+      },
+      "Enable Undo Posts": {
+        "enabled": false
+      },
+      "Export all activities": {
+        "enabled": false
+      },
+      "External downloader": {
+        "enabled": false
+      },
+      "Filter stories": {
+        "enabled": false
+      },
+      "Focus Lock": {
+        "enabled": false
+      },
+      "Force enable translate": {
+        "enabled": false
+      },
+      "Friendship status indicator": {
+        "enabled": false
+      },
+      "Handle custom twitter links": {
+        "enabled": false
+      },
+      "Hide badges from navigation bar icons": {
+        "enabled": false
+      },
+      "Hide Banner": {
+        "enabled": false
+      },
+      "Hide bookmark icon in timeline": {
+        "enabled": false
+      },
+      "Hide community badges": {
+        "enabled": false
+      },
+      "Hide Community Notes": {
+        "enabled": false
+      },
+      "Hide FAB": {
+        "enabled": false
+      },
+      "Hide FAB Menu Buttons": {
+        "enabled": false
+      },
+      "Hide followed by context": {
+        "enabled": false
+      },
+      "Hide group creation button on sharesheet": {
+        "enabled": false
+      },
+      "Hide hidden replies": {
+        "enabled": false
+      },
+      "Hide immersive player": {
+        "enabled": false
+      },
+      "Hide Live Threads": {
+        "enabled": false
+      },
+      "Hide notes tray": {
+        "enabled": false
+      },
+      "Hide nudge button": {
+        "enabled": false
+      },
+      "Hide post metrics": {
+        "enabled": false
+      },
+      "Hide promote button": {
+        "enabled": false
+      },
+      "Hide recommendation items": {
+        "enabled": false
+      },
+      "Hide Recommended Users": {
+        "enabled": false
+      },
+      "Hide Reels follow button": {
+        "enabled": false
+      },
+      "Hide reshare button": {
+        "enabled": false
+      },
+      "Hide save buttons": {
+        "enabled": false
+      },
+      "Hide share button": {
+        "enabled": false
+      },
+      "Hide stories tray": {
+        "enabled": false
+      },
+      "Hide suggested content": {
+        "enabled": true
+      },
+      "Hide verified users": {
+        "enabled": false
+      },
+      "Hook feature flag": {
+        "enabled": false
+      },
+      "Import/Export login token": {
+        "enabled": false
+      },
+      "Improve image viewing": {
+        "enabled": false
+      },
+      "Inbox lock": {
+        "enabled": false
+      },
+      "Legacy share links": {
+        "enabled": false
+      },
+      "Limit feed to following profiles": {
+        "enabled": false
+      },
+      "Log server response": {
+        "enabled": false
+      },
+      "Loop story": {
+        "enabled": false
+      },
+      "Make ephemeral media permanent": {
+        "enabled": false
+      },
+      "Mark chat as read manually": {
+        "enabled": false
+      },
+      "More information on profile": {
+        "enabled": false
+      },
+      "More options on post": {
+        "enabled": false
+      },
+      "More options on profile": {
+        "enabled": false
+      },
+      "Native downloader": {
+        "enabled": false
+      },
+      "Native reader mode": {
+        "enabled": false
+      },
+      "Native translator": {
+        "enabled": false
+      },
+      "No shortened URL": {
+        "enabled": false
+      },
+      "Open links externally": {
+        "enabled": false
+      },
+      "Pause search suggestions": {
+        "enabled": false
+      },
+      "Postbox link router": {
+        "enabled": true
+      },
+      "Postbox network block": {
+        "enabled": true,
+        "options": {
+          "traceNetwork": false
+        }
+      },
+      "Postbox settings lock": {
+        "enabled": true
+      },
+      "Postbox shortcut lock": {
+        "enabled": true
+      },
+      "Recommended flags": {
+        "enabled": false
+      },
+      "Remove Ads": {
+        "enabled": false
+      },
+      "Remove empty bottom space": {
+        "enabled": false
+      },
+      "Remove premium upsell": {
+        "enabled": false
+      },
+      "Remove search suggestions": {
+        "enabled": false
+      },
+      "Remove view count": {
+        "enabled": false
+      },
+      "Restore legacy follower lists": {
+        "enabled": false
+      },
+      "Round off numbers": {
+        "enabled": false
+      },
+      "Sanitize share links": {
+        "enabled": true
+      },
+      "Save deleted messages": {
+        "enabled": false
+      },
+      "Save Instants": {
+        "enabled": false
+      },
+      "Save media comment": {
+        "enabled": false
+      },
+      "Selectable Text": {
+        "enabled": false
+      },
+      "Share Tweet as Image": {
+        "enabled": false
+      },
+      "Show changelogs": {
+        "enabled": false
+      },
+      "Show poll results": {
+        "enabled": false
+      },
+      "Show post source label": {
+        "enabled": false
+      },
+      "Show sensitive media": {
+        "enabled": false
+      },
+      "Support external downloader": {
+        "enabled": false
+      },
+      "Theme": {
+        "enabled": false
+      },
+      "Unlock developer options": {
+        "enabled": false
+      },
+      "Unlock employee options": {
+        "enabled": false
+      },
+      "Unlock Plus benefits": {
+        "enabled": false
+      },
+      "View DMs anonymously": {
+        "enabled": false
+      },
+      "View live anonymously": {
+        "enabled": false
+      },
+      "View stories anonymously": {
+        "enabled": false
+      },
+      "View story mentions": {
+        "enabled": false
+      }
+    }
+  }
+]

@@ -1,0 +1,107 @@
+name: Build Postbox
+
+# Separate from build.yml and build-x.yml on purpose: Postbox (patched Instagram)
+# relies on the stock-cache for its APKM (APKMirror's Instagram pages are behind
+# an interactive Cloudflare challenge) and tracks the piko fork, which moves on
+# its own schedule, so it runs on its own and publishes its own "postbox-v..."
+# release. A failure here never blocks the YouTube nightly or the X build.
+#
+# No cron. Three triggers cut a release:
+#   - a push to main that touches a Postbox build file (the paths list below)
+#   - the piko fork's build-mpp.yml firing a repository_dispatch (piko-release)
+#     after it publishes a new bundle
+#   - a manual run
+# Push and dispatch runs always pass --force: a push that only edits the options
+# file must still release, and the piko dispatch means "there is a new bundle".
+# Only a manual run honours build-postbox.sh's skip-if-piko-unchanged check, and
+# ticking "force" overrides that too.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-postbox.yml"
+      - "scripts/build-postbox.sh"
+      - "scripts/lib.sh"
+      - "scripts/patch.sh"
+      - "scripts/download-apk.sh"
+      - "scripts/*-dl.py"
+      - "scripts/assert.sh"
+      - "scripts/gen-obtainium-config.py"
+      - "config/build.env"
+      - "config/expected-signatures.txt"
+      - "config/postbox-options.json"
+      - "config/assertions/postbox-*"
+  repository_dispatch:
+    types: [piko-release]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force a build even if the piko version is unchanged"
+        type: boolean
+        default: false
+
+concurrency:
+  group: vantage-build-postbox
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # create the Postbox release + read/write the stock-cache
+
+jobs:
+  build-postbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60   # ~150MB APKM download + a patch pass, with headroom
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VANTAGE_KEYSTORE_B64: ${{ secrets.VANTAGE_KEYSTORE_B64 }}
+      VANTAGE_KEYSTORE_PASS: ${{ secrets.VANTAGE_KEYSTORE_PASS }}
+      VANTAGE_KEYSTORE_ALIAS: ${{ secrets.VANTAGE_KEYSTORE_ALIAS }}
+      VANTAGE_KEYSTORE_SHA256: ${{ secrets.VANTAGE_KEYSTORE_SHA256 }}
+      VANTAGE_CERT_SHA256: ${{ secrets.VANTAGE_CERT_SHA256 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Show toolchain
+        run: |
+          java -version
+          ls "$ANDROID_HOME/build-tools" 2>/dev/null | tail -3 || true
+          jq --version
+
+      - name: Install curl_cffi (APKMirror APKM download)
+        run: |
+          python3 -m pip install --quiet --user -r requirements.txt \
+            || python3 -m pip install --quiet --break-system-packages -r requirements.txt \
+            || python3 -m pip install --quiet -r requirements.txt
+          python3 -c "import curl_cffi; print('curl_cffi', curl_cffi.__version__)"
+
+      - name: Build Postbox (resolve, skip-if-unchanged, patch, assert, release)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          FORCE_INPUT: ${{ github.event.inputs.force }}
+        run: |
+          set -euo pipefail
+          FORCE=""
+          if [ "$EVENT_NAME" = "push" ] || [ "$EVENT_NAME" = "repository_dispatch" ] \
+             || [ "$FORCE_INPUT" = "true" ]; then
+            FORCE="--force"
+          fi
+          bash scripts/build-postbox.sh $FORCE --release
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vantage-postbox-build-logs
+          path: |
+            build/out/postbox-*.log
+            build/out/postbox-result.json
+          if-no-files-found: ignore
+          retention-days: 14

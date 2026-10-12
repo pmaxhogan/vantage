@@ -32,6 +32,13 @@ SLUGS = {
     "com.google.android.youtube": "google-inc/youtube/youtube",
     "com.google.android.apps.youtube.music": "google-inc/youtube-music/youtube-music",
     "com.twitter.android": "x-corp/x/x",
+    # Instagram (Postbox). As of 2026-10-11 APKMirror serves this app's release
+    # pages behind an interactive Cloudflare challenge that curl_cffi's TLS
+    # impersonation cannot pass (and this script must not try to), so expect the
+    # release-page request below to fail until that changes; the Postbox build
+    # relies on the stock-cache release instead. The slug is dev/app/file-prefix,
+    # like the others: .../apk/instagram/instagram-instagram/instagram-instagram-447-0-0-55-81-release/
+    "com.instagram.android": "instagram/instagram-instagram/instagram-instagram",
 }
 # arch aliases: what row-text tokens count as a match for a requested arch.
 ARCH_ALIASES = {

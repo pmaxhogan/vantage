@@ -563,7 +563,9 @@ main() {
   # -------------------------------------------------------------------------
   local sources
   if [ "$CONTAINER" = "apkm" ]; then
-    sources="${X_DL_SOURCES:-apkmirror}"
+    # Per-package list: Instagram (Postbox) has its own, everything else is X's.
+    if [ "$PKG" = "${IG_PACKAGE:-}" ]; then sources="${IG_DL_SOURCES:-apkmirror}"
+    else sources="${X_DL_SOURCES:-apkmirror}"; fi
   elif [ "$CONTAINER" = "bundle" ]; then
     sources="${CLAUDE_DL_SOURCES:-googleplay apkcombo uptodown}"
   else

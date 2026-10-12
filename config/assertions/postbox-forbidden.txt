@@ -1,0 +1,36 @@
+# Patches that must NOT end up in appliedPatches for the Postbox build, one per
+# line. morphe can auto-pull a deselected patch back in as a dependency, so a plain
+# "enabled": false in the options file isn't a guarantee - this guard fails the
+# build if the patch actually applied.
+#
+# Postbox keeps only the structural blocking patches. Excluded on purpose:
+#  - download / save-media / external-downloader / ephemeral-media patches,
+#  - anonymous viewing, typing-status and read-receipt patches ("ghost mode"),
+#  - ad blocking and screenshot-detection patches,
+# because those are the features piko users report account suspensions around;
+# leaving them off keeps the account-risk profile close to a stock client.
+# Focus Lock is out because its cool-off period is a bypass of the lock-down.
+# The rest are cosmetic or unlock patches Postbox has no use for. Change version
+# code is X-only (compatible with com.twitter.android) and must never apply here.
+Download media
+Download voice message
+External downloader
+Save Instants
+Save deleted messages
+Save media comment
+Make ephemeral media permanent
+View stories anonymously
+View live anonymously
+View DMs anonymously
+Disable typing status
+Mark chat as read manually
+Disable screenshot detection
+Disable ads
+Theme
+Custom font
+Focus Lock
+Inbox lock
+Limit feed to following profiles
+Unlock Plus benefits
+Unlock developer options
+Unlock employee options

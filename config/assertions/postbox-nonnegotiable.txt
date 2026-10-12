@@ -1,0 +1,28 @@
+# Patches that must be applied for the Postbox (patched Instagram) build, one per
+# line. Names must match the piko patch names exactly so an upstream rename trips
+# this guard. The count isn't checked - dependency patches ride along.
+#
+# These ten ARE the product: the Clone is what gives the app its own package and
+# label, and the rest are the structural blocks (nav bar down to Home / Messages /
+# Profile, Explore, Reels paging, suggested units and accounts, swipe-to-create).
+# Change version code pins the version code to the maximum, so a store can never
+# offer the clone an update.
+# A fingerprint break on a piko bump must fail the build rather than ship an
+# Instagram with the feed or Reels still reachable.
+Add settings
+Clone
+Customize navigation bar
+Disable explore
+Disable Reels scrolling
+Hide suggested content
+Disable discover people
+Disable swipe to create
+Sanitize share links
+Change version code
+# The Vantage-only lock-down patches from the pmaxhogan/piko fork. Without any
+# one of them the build is an Instagram with a way back to the feed, so a
+# fingerprint break or an upstream rename must fail the build, not ship.
+Postbox settings lock
+Postbox shortcut lock
+Postbox link router
+Postbox network block

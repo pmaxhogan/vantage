@@ -51,7 +51,11 @@ Produce a release pipeline and patch set such that:
 "Done" is observable: the flows in section 7 pass on the Pixel 6 with
 screenshot evidence, the release exists on GitHub with the APK, manifest and
 regenerated `obtainium-config.json`, Obtainium installs it from that config,
-and the dependabot workflows have run green at least once on a real bot PR.
+and the dependabot auto-merge workflow has either merged a real bot PR green
+(adding `dependabot.yml` triggers an immediate version check, so a PR usually
+appears within minutes if anything is outdated) or, when nothing is outdated
+on the day, has its files landed and shape verified with the first live run
+expected on the weekly Monday tick.
 
 ---
 
@@ -90,7 +94,7 @@ and the dependabot workflows have run green at least once on a real bot PR.
 | P1 | Release trigger | `build-postbox.yml` in `vantage`: `on: push: branches: [main]` with `paths:` filtered to Postbox build files (the workflow itself, `scripts/build-postbox.sh`, `scripts/lib.sh`, `scripts/patch.sh`, `scripts/download-apk.sh`, `scripts/*-dl.py`, `scripts/assert.sh`, `scripts/gen-obtainium-config.py`, `config/build.env`, `config/expected-signatures.txt`, `config/postbox-options.json`, `config/assertions/postbox-*`), plus `repository_dispatch` (event type `piko-release`) fired by the piko fork's `build-mpp.yml` after it publishes, plus `workflow_dispatch` with a `force` input. **No cron.** |
 | P2 | Dependabot merges and releases | A Dependabot merge on `vantage` main releases **only if it touches the path-filtered Postbox files** (follows from P1). |
 | P3 | Dependabot scope | `vantage`: github-actions + pip, weekly. `piko` fork: github-actions + gradle, weekly, targeting `main` (upstream's file targets `dev` monthly; the fork overrides it - keep the override out of the files that `sync-upstream` would conflict on if possible, or accept that `.github/dependabot.yml` is a fork-owned file). `vantage-patches`: github-actions + gradle, weekly. |
-| P4 | Auto-merge policy | **Minor/patch auto-merge, majors held with a comment**, on all three repos. All three are public, so use the native shape (`~/code/tapshim/.github/workflows/dependabot-auto-merge.yml`: `pull_request` trigger, `dependabot/fetch-metadata@v2`, `gh pr merge --auto --squash`, comment on majors). Requires `allow_auto_merge` on the repo (vantage already true; enable on piko and vantage-patches) and a ruleset/branch protection on `main` requiring the CI check so `--auto` has something to wait on. |
+| P4 | Auto-merge policy | **Minor/patch auto-merge, majors held with a comment**, on all three repos (locked by Max). Shape (implementer's call, decided here): the **leaveby `workflow_run` merge-on-green shape** (`~/code/leaveby/.github/workflows/dependabot-auto-merge.yml`), NOT `gh pr merge --auto` plus a ruleset. Reason: a required-status-check ruleset on `main` also gates direct pushes, which X7 relies on, and the piko fork's `sync-upstream.yml` opens its PR with `GITHUB_TOKEN`, whose PRs never trigger `pull_request` workflows, so a required check would stall the nightly upstream merge forever. The merge job needs a `pull_request`-triggered CI workflow to listen to (see 4.7). No ruleset, no `allow_auto_merge` change required. |
 | P5 | Signing | The shared Vantage keystore (`VANTAGE_KEYSTORE_B64/_PASS/_ALIAS/_SHA256`, `VANTAGE_CERT_SHA256` secrets). No new keystore. |
 | P6 | Icon and label | Instagram's adaptive icon **recolored** (reuse the vantage-patches Claude "Clone with badge" icon-rewrite technique, or a resource patch in the fork) so it is distinguishable from stock; label "Postbox". Custom art may replace it later. |
 | P7 | Obtainium | New entry in `scripts/gen-obtainium-config.py`: id `app.vantage.postbox`, name "Postbox", `apkFilterRegEx` `postbox-.*\.apk`, same `vantage_addl` shape (date-as-version, fallback to older releases). Release assets: `postbox-<igver>.apk`, `built-versions-postbox.json`, `obtainium-config.json`. Tag `postbox-v<date>-piko<ver>`, `--latest=false`. |
@@ -388,8 +392,19 @@ code is copied (GPLv3 §7 terms in both piko and FeurStagram).
   `patches-$VVER.mpp`, prerelease per repo var `MPP_PRERELEASE`. Add: an
   Instagram extension test task if tests are added, and a final step
   `gh api repos/pmaxhogan/vantage/dispatches -f event_type=piko-release`
-  (needs a PAT with `repo` scope on the fork as a secret, e.g. `VANTAGE_DISPATCH_TOKEN`,
-  since `GITHUB_TOKEN` cannot dispatch to another repo - pre-granted under X5).
+  (needs a PAT with `repo`/`contents:write` on `pmaxhogan/vantage` stored on
+  the fork as secret `VANTAGE_DISPATCH_TOKEN`, since `GITHUB_TOKEN` cannot
+  dispatch to another repo). **The fork holds NO secrets today (`gh secret
+  list -R pmaxhogan/piko` is empty; the `SYNC_TOKEN` the sync workflow header
+  mentions was never created) and `~/.unbroker-secrets/` has no personal
+  GitHub PAT.** Minting a PAT is the one action only Max can perform: when
+  Wave 1 reaches the dispatch step, PushNotification Max asking for a
+  fine-grained PAT (repo `pmaxhogan/vantage`, permission Contents: read and
+  write, Metadata: read), and in the meantime wire the step so it skips with
+  a warning when the secret is absent (`if: ${{ secrets.VANTAGE_DISPATCH_TOKEN != '' }}`
+  is not valid syntax; use a shell check on an env var) so the fork release
+  never fails on it. Setting the secret (`gh secret set VANTAGE_DISPATCH_TOKEN
+  -R pmaxhogan/piko`) is pre-granted under X5.
 - `.github/workflows/sync-upstream.yml`: nightly 07:00 UTC, opens a PR from
   `crimera:main`, merges only if MEMBER/MERGEABLE checks pass, then dispatches
   build-mpp. Fork-only files must avoid touching upstream-owned lines
@@ -409,18 +424,30 @@ code is copied (GPLv3 §7 terms in both piko and FeurStagram).
   under `extensions/instagram/src/test/java/...` and run them in build-mpp.
 
 ### 4.7 Dependabot auto-merge templates
-- Public repos (all three here): copy `~/code/tapshim/.github/workflows/dependabot-auto-merge.yml`
-  (`pull_request` -> `dependabot/fetch-metadata@v2` -> `gh pr merge --auto
-  --squash` for minor/patch, comment for major) and `~/code/tapshim/.github/dependabot.yml`
-  (weekly Monday, groups). Native auto-merge needs `allow_auto_merge: true`
-  (vantage: already true; piko, vantage-patches: false - enable via
-  `gh api -X PATCH repos/pmaxhogan/<r> -f allow_auto_merge=true`) AND a
-  ruleset on `main` requiring the CI status check, otherwise `--auto` merges
-  immediately with no check. vantage has no `pull_request` CI today: add a
-  cheap `ci.yml` (shellcheck + `python3 -m py_compile` + `jq` validation of the
-  options/config JSON + `bash -n`) and make it the required check. piko fork:
-  `build_pull_request.yml` exists upstream; vantage-patches: add a gradle
-  compile check or reuse its build workflow on `pull_request`.
+- Shape (P4): copy `~/code/leaveby/.github/workflows/dependabot-auto-merge.yml`
+  (`on: workflow_run: workflows: [CI], types: [completed]`; job `if` requires
+  conclusion success, event `pull_request`, actor `dependabot[bot]`; finds the
+  open PR whose head sha matches; classifies by grepping
+  `update-type: version-update:semver-*` from the commit message because
+  `dependabot/fetch-metadata` needs a `pull_request` payload; minor/patch ->
+  `gh pr merge N --squash --match-head-commit "$HEAD_SHA"`; major or unknown
+  -> one comment, held). Copy `~/code/tapshim/.github/dependabot.yml` for the
+  `dependabot.yml` shape (weekly Monday, groups) and adapt ecosystems per P3.
+  The tapshim `gh pr merge --auto` + ruleset shape is NOT used: rulesets with
+  required status checks also block direct pushes to `main` (X7), and the
+  piko fork's `sync-upstream.yml` PR is opened with `GITHUB_TOKEN`, which never
+  triggers `pull_request` workflows, so a required check would strand the
+  nightly upstream merge. No `allow_auto_merge` change, no ruleset.
+- The merge job needs a `pull_request`-triggered workflow named `CI` to
+  listen to. vantage has none today: add a cheap `ci.yml` (`name: CI`;
+  shellcheck, `bash -n` on `scripts/*.sh`, `python3 -m py_compile` on
+  `scripts/*.py`, `jq empty` on every `config/*.json`, `gen-obtainium-config.py`
+  dry run). It must need no secrets. piko fork: upstream's
+  `build_pull_request.yml` exists - check its `name:` and whether it runs on
+  Dependabot PRs without secrets (the Morphe registry needs
+  `GITHUB_TOKEN:read:packages`, which Dependabot PRs do get as the default
+  token; verify on the first bot PR). vantage-patches: reuse `build-mpp.yml`
+  on `pull_request` or add a gradle compile check.
 - Gotchas from the leaveby session (2026-10-11): no workflow-level
   `concurrency` group on the merge workflow (a group drops queued merges);
   Dependabot PRs get no Actions secrets, so CI must not need the keystore on
@@ -482,15 +509,18 @@ dispatch, the implementer installs and verifies that item's flows on the
 device before the next. Gate: all section-7 flows pass with screenshots.
 PushNotification at the end of (c) and at the end of the wave.
 
-**Wave 3 - dependabot + docs (sonnet subagents).** dependabot.yml + auto-merge
-workflow + required-check ruleset + `allow_auto_merge` on all three repos; a
-minimal `ci.yml` on vantage; README sections; CLAUDE.md notes; fork README
-patch list. Gate: `gh api repos/pmaxhogan/<r> --jq .allow_auto_merge` true on
-all three; the auto-merge workflow has run (trigger a Dependabot check via
-`gh api -X POST repos/<r>/dependabot/...` is not available - instead confirm
-by waiting for the first weekly PR or by opening one bot-style PR is not
-possible; so: verify the workflow file lints, the ruleset exists, and leave a
-note that first live proof arrives Monday). PushNotification: "Postbox done".
+**Wave 3 - dependabot + docs (sonnet subagents).** `dependabot.yml` + the
+`workflow_run` auto-merge workflow on all three repos; a minimal
+`pull_request`-triggered `ci.yml` on vantage (and on vantage-patches if it has
+none) for the merge job to listen to; README sections; CLAUDE.md notes; fork
+README patch list. Gate: committing `dependabot.yml` triggers an immediate
+version check (GitHub docs), so within ~10 minutes either bot PRs exist, in
+which case wait for CI, confirm the merge job merged the minor/patch ones and
+commented on any major, and link the runs in the report, or no PR appears
+because nothing is outdated, in which case verify the workflow files lint
+(`actionlint` if available, else `gh workflow view`), confirm the CI workflow
+ran on the last push, and record "first live run expected Monday" in the
+report. PushNotification: "Postbox done".
 
 **Stuck policy.** Park-and-document after two failed attempts on one
 fingerprint: ship the X3 fallback for that item, write the failure (what was
@@ -529,9 +559,9 @@ strategy" is never an escalation.
   `~/unbroker/.claude/ultraquest-standing-answers.md` under a new
   `### pmaxhogan/vantage + pmaxhogan/piko (Postbox quest, 2026-10-11)` heading,
   dated):
-  - Dependabot on personal public repos: weekly, minor/patch auto-merge via
-    the tapshim-shaped `pull_request` workflow, majors commented and held;
-    requires `allow_auto_merge` + a required-check ruleset.
+  - Dependabot on personal repos: weekly, minor/patch auto-merge via the
+    leaveby-shaped `workflow_run` merge-on-green workflow, majors commented
+    and held; no rulesets on `main` (direct pushes must keep working).
   - Release triggers for Vantage apps added from now on: push-to-main with
     path filters + `repository_dispatch` from the patch repo, no cron, unless
     the quest says otherwise.
@@ -614,9 +644,8 @@ Build-level:
 - Release notes template (from `build-x.sh:169-191`): state the Instagram
   version, piko version, morphe-cli version, package, what is blocked, the
   "Open supported links" step, and that it installs alongside stock Instagram.
-- Never leave `nohup.out` or build outputs untracked in vantage (it is in
-  `.gitignore`? check; today `nohup.out` is untracked at the repo root - leave
-  it alone, it is not yours).
+- An untracked `nohup.out` sits at the vantage repo root today; it is not
+  yours, leave it alone and never `git add -A`.
 
 ---
 

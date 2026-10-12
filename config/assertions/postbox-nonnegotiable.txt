@@ -26,3 +26,4 @@ Postbox settings lock
 Postbox shortcut lock
 Postbox link router
 Postbox network block
+Postbox profile grid

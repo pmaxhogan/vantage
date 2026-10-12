@@ -345,6 +345,9 @@
           "traceNetwork": false
         }
       },
+      "Postbox profile grid": {
+        "enabled": true
+      },
       "Postbox settings lock": {
         "enabled": true
       },

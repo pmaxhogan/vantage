@@ -217,7 +217,7 @@ repo's "latest release" slot stays on a YouTube build.
 
 | Variant | App | Package | Label | Patch source |
 |---|---|---|---|---|
-| Postbox | Instagram | `app.vantage.postbox` (stock Instagram is `com.instagram.android`) | Postbox | piko fork (ten piko patches + the four Postbox patches, `--exclusive`) |
+| Postbox | Instagram | `app.vantage.postbox` (stock Instagram is `com.instagram.android`) | Postbox | piko fork (ten piko patches + the five Postbox patches, `--exclusive`) |
 
 Postbox installs **alongside** stock Instagram, because piko's `Clone` patch gives
 it its own package and label, and it is signed with the Vantage key like every
@@ -237,8 +237,8 @@ Designed to stay available:
   the account pages: login, logout, 2FA and settings.
 - **Links people send you**: a post, reel, story, profile or chat link opens as a
   single item with nothing scrollable beneath it. Other people's profiles open
-  too (header, bio, highlights, follower and following lists); hiding the post
-  and reel grid on someone else's profile is not part of the current patch set.
+  too (header, bio, highlights, follower and following lists), without their
+  post and reel grid.
 
 Designed to be blocked, and how:
 
@@ -250,6 +250,7 @@ Designed to be blocked, and how:
 | Launcher long-press shortcuts | Static shortcuts are stripped from the manifest, the ones Instagram publishes at runtime are cleared on every launch and re-checked once a minute, and shortcuts already pinned to the home screen are disabled | `Postbox shortcut lock` |
 | Deep links and notification taps | Links and intents for Home, Explore, the Reels tab, search, hashtag and location pages land on Messages; single items, DMs and the account pages open as usual | `Postbox link router` |
 | Home feed, Explore, Reels tab, "more like this" | The requests behind them fail, so the surface renders empty however it was reached, and a few more suggested and ad units are dropped at the parser | `Postbox network block` |
+| Posts and reels grid on other people's profiles | The tab strip and the pager under the header are hidden on any profile that is not yours, and the requests that fill them fail | `Postbox profile grid` |
 | Suggested accounts, swipe-to-create, Reels paging | piko's own patches, enabled | `Disable discover people`, `Disable swipe to create`, `Disable Reels scrolling` |
 
 Left out on purpose: piko's download, anonymous-viewing (ghost mode), typing-status,
@@ -326,7 +327,7 @@ piko's `Add settings`, `Clone` (package `app.vantage.postbox`, label `Postbox`),
 `Customize navigation bar`, `Disable explore`, `Disable Reels scrolling`,
 `Hide suggested content`, `Disable discover people`, `Disable swipe to create`,
 `Sanitize share links` and `Change version code` (so a store can never offer the
-clone an update), plus the four Postbox-only patches that live in the
+clone an update), plus the five Postbox-only patches that live in the
 fork (all default off in the bundle, so a plain piko user never gets them):
 
 | Patch | What it does |
@@ -335,6 +336,7 @@ fork (all default off in the bundle, so a plain piko user never gets them):
 | Postbox shortcut lock | Removes launcher shortcuts: static, dynamic and pinned. |
 | Postbox link router | Sends Home, Explore, Reels-tab, search, hashtag and location links and intents to Messages. |
 | Postbox network block | Fails the requests behind the feed, Explore, Reels and "more like this". |
+| Postbox profile grid | Hides the posts and reels grid on other people's profiles and blocks the requests that fill it. |
 
 The Postbox patches carry no fingerprints for Instagram's obfuscated code. They edit
 piko's own extension code by class and method name, so they follow Instagram
@@ -345,7 +347,7 @@ refuses to build when any enabled option whose key contains `test`, `debug` or
 `trace` is on, or when a patch named in `postbox-forbidden.txt` is enabled.
 
 The assertion lists are in `config/assertions/`: `postbox-nonnegotiable.txt` (the
-ten piko patches and the four Postbox patches that must apply),
+ten piko patches and the five Postbox patches that must apply),
 `postbox-forbidden.txt` (patches that must not apply) and
 `postbox-inert-allowlist.txt` (empty on 447.0.0.55.81). Edit those, not the script.
 
@@ -734,9 +736,10 @@ bash scripts/build.sh --force                 # build + stage in build/release
   Its pinned signing cert has the same rotation caveat as X's.
 - Postbox has not been run on a device yet, and what it blocks is designed, not
   observed: the patches edit piko's own extension code, so a green build proves the
-  bundle applied and the APK is signed, not that a given screen is closed. Not
-  yet in the patch set: hiding the post and reel grid on other people's profiles, and
-  the feed-switcher dropdown on Home.
+  bundle applied and the APK is signed, not that a given screen is closed. The
+  profile-grid patch is the least certain: its view names and request paths have not
+  been checked against the real APK yet. Not yet in the patch set: hiding the
+  feed-switcher dropdown on Home.
   It is also effectively cache-only for Instagram: the stock APKM must already be in
   `stock-cache` for the pinned version, so an Instagram version bump (which follows
   the piko fork's supported version) waits for a new cache entry. Its pinned signing

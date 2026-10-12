@@ -96,9 +96,9 @@ Prove it fired, do not infer it:
 - Enabled set: `Add settings`, `Clone` (`packageName` `app.vantage.postbox`, `appName`
   `Postbox`), `Customize navigation bar`, `Disable explore`, `Disable Reels scrolling`,
   `Hide suggested content`, `Disable discover people`, `Disable swipe to create`,
-  `Sanitize share links`, `Change version code`, and the four fork-only `Postbox settings lock`, `Postbox
-  shortcut lock`, `Postbox link router`, `Postbox network block`. `postbox-nonnegotiable.txt`
-  lists exactly these fourteen.
+  `Sanitize share links`, `Change version code`, and the five fork-only `Postbox settings lock`, `Postbox
+  shortcut lock`, `Postbox link router`, `Postbox network block`, `Postbox profile grid`.
+  `postbox-nonnegotiable.txt` lists exactly these fifteen.
 - `postbox-forbidden.txt` (downloads, ghost mode, typing status, read receipts, ad
   blocking, screenshot detection, theme, font, Focus Lock, Inbox lock, Limit feed to
   following profiles, the Unlock patches). `check_postbox_options`

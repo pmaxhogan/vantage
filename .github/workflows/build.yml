@@ -55,9 +55,9 @@ jobs:
 
       - name: Install curl_cffi (APKMirror/APKPure fallback download on cache miss)
         run: |
-          python3 -m pip install --quiet --user curl_cffi \
-            || python3 -m pip install --quiet --break-system-packages curl_cffi \
-            || python3 -m pip install --quiet curl_cffi
+          python3 -m pip install --quiet --user -r requirements.txt \
+            || python3 -m pip install --quiet --break-system-packages -r requirements.txt \
+            || python3 -m pip install --quiet -r requirements.txt
           python3 -c "import curl_cffi; print('curl_cffi', curl_cffi.__version__)"
 
       - name: Build Vantage (resolve, skip-if-unchanged, patch x3, assert, release)

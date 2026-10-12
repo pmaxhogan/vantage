@@ -1,0 +1,50 @@
+name: CI
+
+# Cheap, secret-free gate for pull requests (and pushes to main). It exists so
+# the Dependabot auto-merge workflow has a pull_request-triggered workflow to
+# listen to: Dependabot PRs get no Actions secrets, so nothing here may need
+# the keystore or any token beyond the default read-only one.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck (errors only)
+        run: shellcheck -S error scripts/*.sh
+
+      - name: bash -n
+        run: |
+          set -euo pipefail
+          for f in scripts/*.sh; do
+            bash -n "$f"
+          done
+
+      - name: python syntax
+        run: python3 -m py_compile scripts/*.py
+
+      - name: JSON configs parse
+        run: |
+          set -euo pipefail
+          for f in config/*.json; do
+            jq empty "$f"
+          done
+
+      # gen-obtainium-config.py writes obtainium-config.json into the CWD, so
+      # run it from a scratch dir to keep the checkout clean. This is a
+      # does-it-run-and-emit-valid-JSON check, not a drift check.
+      - name: obtainium config generator dry run
+        run: |
+          set -euo pipefail
+          out="$(mktemp -d)"
+          (cd "$out" && python3 "$GITHUB_WORKSPACE/scripts/gen-obtainium-config.py")
+          jq empty "$out/obtainium-config.json"

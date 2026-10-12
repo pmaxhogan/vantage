@@ -1,0 +1,94 @@
+name: Dependabot auto-merge
+
+# Merge-on-green for Dependabot PRs, as a workflow_run job instead of
+# `gh pr merge --auto` plus a branch ruleset. A required-status-check ruleset
+# would also gate direct pushes to main, and bot-opened PRs made with
+# GITHUB_TOKEN never trigger pull_request workflows, so a required check could
+# strand them forever. Instead, this runs after CI finishes green on a
+# Dependabot PR and merges it directly. No ruleset and no allow_auto_merge
+# setting are needed.
+#
+# Do NOT add a workflow-level `concurrency` group here: a group keeps only one
+# pending run and drops the rest, so queued merges would be silently lost.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    # actor is whoever pushed the head commit: a human fix pushed onto a
+    # Dependabot branch opts that PR out of auto-merge.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      OWNER: ${{ github.repository_owner }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Find the open Dependabot PR for this run
+        id: pr
+        run: |
+          number="$(gh api "repos/$GH_REPO/pulls?state=open&head=$OWNER:$HEAD_BRANCH" \
+            | jq -r --arg sha "$HEAD_SHA" \
+              '[.[] | select(.user.login == "dependabot[bot]" and .head.sha == $sha)][0].number // empty')"
+          if [ -z "$number" ]; then
+            echo "No open Dependabot PR at $HEAD_SHA on $HEAD_BRANCH (stale run or already merged)."
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      # dependabot/fetch-metadata needs a pull_request payload, which a
+      # workflow_run event does not carry, so read the same update-type lines
+      # it parses out of Dependabot's commit message.
+      - name: Classify update
+        id: meta
+        if: steps.pr.outputs.number != ''
+        run: |
+          types="$(gh api "repos/$GH_REPO/commits/$HEAD_SHA" --jq .commit.message \
+            | grep -o 'update-type: version-update:semver-[a-z]*' | sort -u || true)"
+          echo "$types"
+          if [ -z "$types" ]; then
+            kind=unknown
+          elif echo "$types" | grep -q 'semver-major'; then
+            kind=major
+          else
+            kind=minor-or-patch
+          fi
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+
+      # --match-head-commit refuses the merge if the branch moved since CI ran.
+      # A merge made with the workflow token does not trigger push workflows,
+      # so nothing downstream of a push to main runs for it.
+      - name: Merge minor and patch updates
+        if: steps.meta.outputs.kind == 'minor-or-patch'
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          gh pr merge "$PR_NUMBER" --squash --match-head-commit "$HEAD_SHA"
+
+      - name: Leave majors and unclassified updates for a human
+        if: steps.meta.outputs.kind == 'major' || steps.meta.outputs.kind == 'unknown'
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          KIND: ${{ steps.meta.outputs.kind }}
+        run: |
+          if [ "$KIND" = "major" ]; then
+            body="Major version bump, not auto-merging. Review and merge by hand."
+          else
+            # e.g. calendar-versioned artifacts that report no semver type.
+            body="Dependabot reported no semver update type, not auto-merging. Review and merge by hand."
+          fi
+          already="$(gh api "repos/$GH_REPO/issues/$PR_NUMBER/comments" \
+            | jq --arg body "$body" '[.[] | select(.body == $body)] | length')"
+          if [ "$already" = "0" ]; then
+            gh pr comment "$PR_NUMBER" --body "$body"
+          fi

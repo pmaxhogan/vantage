@@ -26,9 +26,9 @@ jobs:
       # from a GitHub runner IP. Downloads to /tmp, so the cache is untouched.
       - name: Probe curl_cffi (APKMirror + APKPure) from datacenter IP
         run: |
-          python3 -m pip install --quiet --user curl_cffi \
-            || python3 -m pip install --quiet --break-system-packages curl_cffi \
-            || python3 -m pip install --quiet curl_cffi
+          python3 -m pip install --quiet --user -r requirements.txt \
+            || python3 -m pip install --quiet --break-system-packages -r requirements.txt \
+            || python3 -m pip install --quiet -r requirements.txt
           for src in apkmirror apkpure; do
             echo "=== $src YouTube 20.51.39 ==="
             if python3 "scripts/${src}-dl.py" com.google.android.youtube 20.51.39 universal "/tmp/$src.apk"; then

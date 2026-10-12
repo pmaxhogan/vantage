@@ -1,0 +1,4 @@
+# Python dependencies of the build workflows (pip-installed in CI). Kept in a
+# manifest so Dependabot can see and bump them.
+# curl_cffi: Chrome TLS impersonation for the stock-APK resolvers (scripts/*-dl.py).
+curl_cffi==0.16.3

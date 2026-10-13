@@ -270,6 +270,9 @@ Checked and working:
 - Cold start lands on Messages; the bar is Home, Message, Profile.
 - Home is the stories tray with the own-story "+", the create "+" and the heart;
   the area below is blank; tapping or long-pressing the title opens nothing.
+- A friend's story opens from the tray, advances on a tap and returns to Home.
+- New Message and the inbox search still find people as you type (the search-results
+  block does not touch them).
 - A reel opened from a chat stays one reel after two swipes; a post opened from a
   chat shows the post and nothing below it.
 - From outside the app, a `/p/` link opens the post, a `/reel/` and a `/reels/` link
@@ -291,7 +294,6 @@ Checked and working:
 Not checked:
 
 - Posting a story, sending a message, logging out and back in with 2FA.
-- Stories were watched on the previous build, not again on this one.
 - Push notifications. The notification permission had not been granted, nobody sent
   a message while the app was closed, and a renamed, re-signed app is exactly the
   kind that can lose push. The push components in the manifest are the same as

@@ -177,7 +177,7 @@ Prove it fired, do not infer it:
 
 The 3.10.0-vantage.3 build was driven by hand on a logged-in account on 2026-10-12;
 the README section "Checked on a device" lists what passed and what was not checked
-(push notifications, posting, logout/login, stories on the final build). Recipe and
+(push notifications, posting, logout/login). Recipe and
 traps for doing it again:
 
 - The Pixel 6 (serial `24021FDF6001U4`) has a dead screen. Max drives it through

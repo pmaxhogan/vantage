@@ -294,10 +294,11 @@ Checked and working:
 Not checked:
 
 - Posting a story, sending a message, logging out and back in with 2FA.
-- Push notifications. The notification permission had not been granted, nobody sent
-  a message while the app was closed, and a renamed, re-signed app is exactly the
-  kind that can lose push. The push components in the manifest are the same as
-  stock Instagram's; that is all that is known.
+- Push notifications. The notification permission was granted afterwards
+  (`adb shell pm grant app.vantage.postbox android.permission.POST_NOTIFICATIONS`),
+  but nobody sent a message while the app was closed, and a renamed, re-signed app
+  is exactly the kind that can lose push. The push components in the manifest are
+  the same as stock Instagram's; that is all that is known.
 - A reel opened from a notification or a profile highlight.
 - `/share/reel/<id>` and `instagram://reel?...` links: they carry no shortcode to
   rewrite and will most likely show the reel viewer's error page.

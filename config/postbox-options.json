@@ -354,6 +354,9 @@
       "Postbox shortcut lock": {
         "enabled": true
       },
+      "Postbox surface lock": {
+        "enabled": true
+      },
       "Recommended flags": {
         "enabled": false
       },

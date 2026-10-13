@@ -104,9 +104,14 @@ Prove it fired, do not infer it:
 - Enabled set: `Add settings`, `Clone` (`packageName` `app.vantage.postbox`, `appName`
   `Postbox`), `Customize navigation bar`, `Disable explore`, `Disable Reels scrolling`,
   `Hide suggested content`, `Disable discover people`, `Disable swipe to create`,
-  `Sanitize share links`, `Change version code`, and the five fork-only `Postbox settings lock`, `Postbox
-  shortcut lock`, `Postbox link router`, `Postbox network block`, `Postbox profile grid`.
-  `postbox-nonnegotiable.txt` lists exactly these fifteen.
+  `Sanitize share links`, `Change version code`, and the six fork-only `Postbox settings lock`, `Postbox
+  shortcut lock`, `Postbox link router`, `Postbox network block`, `Postbox profile grid`,
+  `Postbox surface lock`. `postbox-nonnegotiable.txt` lists exactly these sixteen.
+- A fork patch that is not in the options file is skipped silently: `--exclusive` leaves
+  it out and `assert.sh` still passes, because nothing names it. When the fork gains a
+  must-have patch, land the options entry and the nonnegotiable line here FIRST with
+  `[skip actions]` in the subject (a build against the older bundle would fail the
+  must-apply check), then push the fork; its dispatch builds with both.
 - `postbox-forbidden.txt` (downloads, ghost mode, typing status, read receipts, ad
   blocking, screenshot detection, theme, font, Focus Lock, Inbox lock, Limit feed to
   following profiles, the Unlock patches). `check_postbox_options`
@@ -162,12 +167,41 @@ Prove it fired, do not infer it:
   manual run of `build-postbox.yml`).
 - Dependabot version updates are OFF by default on a fork. They must be enabled once in
   the fork's Settings > Advanced Security (the `dependabot.yml` there does nothing
-  until then).
+  until then; no REST or CLI path exists). Enabled on the piko fork on 2026-10-12.
+  Enabling did not start a check by itself; a commit that touched
+  `.github/dependabot.yml` started one within seconds.
 - `gh pr merge` and `gh pr comment` by hand are hook-gated on this machine; workflows
   running in Actions are not.
 
-## Not verified yet
+## Device checks (Pixel 6)
 
-Nothing about Postbox has been checked on a device as of 2026-10-11, and the signing
-certs and the size floor are unconfirmed against a real APKM (see above). The README
-says the same; when that changes, update both.
+The 3.10.0-vantage.3 build was driven by hand on a logged-in account on 2026-10-12;
+the README section "Checked on a device" lists what passed and what was not checked
+(push notifications, posting, logout/login, stories on the final build). Recipe and
+traps for doing it again:
+
+- The Pixel 6 (serial `24021FDF6001U4`) has a dead screen. Max drives it through
+  `scrcpy --stay-awake --no-audio`; an agent uses `adb exec-out screencap -p`,
+  `adb shell input` and `uiautomator dump`. zsh does not word-split `$var`, so loop
+  over arrays or write the helper as a bash script.
+- CI signs with the release key, a local build with the test keystore. A local build
+  cannot replace the installed release without an uninstall, and an uninstall logs
+  Max out. To get a fix onto the phone, ship it (fork push, dispatch, release) and
+  `adb install -r` the release APK: same key, the login survives. That also rules out
+  a local `traceNetwork` build on the logged-in phone; find endpoints with `strings`
+  on the stock dex and confirm the page is empty or bounced on the device.
+- `uiautomator dump` returns the screen underneath while a reel is playing (the
+  viewer never goes idle). Screenshot it, or open its comments sheet first.
+- DM thread windows can be `FLAG_SECURE`: the screenshot is black, the dump still works.
+- Evidence that a lock acted is a logcat line, not the absence of a screen:
+  `bounce <link>`, `surface: bounce serp|audio|place`, `surface: home title locked`,
+  `shortcuts: dropped N of N at publish`, `reel link -> post viewer, in place`, and
+  `Postbox: blocked` in Instagram's own error lines. `shortcuts: removed N dynamic`
+  after the first launch means a publish path was missed and the fallback caught it.
+  Instagram's `IgFunctionalErrorEvent` line (flushed on the next cold start) names the
+  request that was refused, e.g. `clips/discover/stream/`.
+- To get a real `/p/` or `/reel/` link without typing one: share sheet, Copy link,
+  then paste into the inbox search field (`input keyevent 279`), read it from a dump
+  and clear the field. Nothing is sent.
+- Views, read receipts and likes are real on a real account. Open threads that are
+  already read, and leave posting, replying and following to Max.

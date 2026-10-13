@@ -217,17 +217,17 @@ repo's "latest release" slot stays on a YouTube build.
 
 | Variant | App | Package | Label | Patch source |
 |---|---|---|---|---|
-| Postbox | Instagram | `app.vantage.postbox` (stock Instagram is `com.instagram.android`) | Postbox | piko fork (ten piko patches + the five Postbox patches, `--exclusive`) |
+| Postbox | Instagram | `app.vantage.postbox` (stock Instagram is `com.instagram.android`) | Postbox | piko fork (ten piko patches + the six Postbox patches, `--exclusive`) |
 
 Postbox installs **alongside** stock Instagram, because piko's `Clone` patch gives
 it its own package and label, and it is signed with the Vantage key like every
-other app here. Nothing has been run on a phone yet: no Postbox build has been
-installed and logged in on a device, so everything below describes what the
-patches are designed to do, not what has been checked by hand.
+other app here. The build with piko `3.10.0-vantage.3` was installed on a Pixel 6
+(Android 16) and driven by hand on a logged-in account on 2026-10-12; what was
+and was not checked is listed under [Checked on a device](#checked-on-a-device).
 
 ### What you get, and what is blocked
 
-Designed to stay available:
+Stays available:
 
 - **Messages**, in full: the inbox, group chats, replies, and the posts and reels
   people send you, opened as single items. The app opens on this tab.
@@ -240,16 +240,18 @@ Designed to stay available:
   too (header, bio, highlights, follower and following lists), without their
   post and reel grid.
 
-Designed to be blocked, and how:
+Blocked, and how:
 
 | Surface | How it is closed | Patch |
 |---|---|---|
 | Bottom bar, Reels and Search tabs | The bar is fixed to Home, Messages and Profile and filtered again on every path where piko would fall back to Instagram's own tab list | `Postbox settings lock` |
 | Settings toggles | Explore, Reels scrolling, suggested content, suggested accounts and swipe-to-create are forced on at build time, so no setting, backup restore or Focus Lock state can switch them back; the dead rows are removed from the settings screen | `Postbox settings lock` |
 | Startup intents | A startup-tab extra naming Reels or Search lands on Messages instead | `Postbox settings lock` |
-| Launcher long-press shortcuts | Static shortcuts are stripped from the manifest, the ones Instagram publishes at runtime are cleared on every launch and re-checked once a minute, and shortcuts already pinned to the home screen are disabled | `Postbox shortcut lock` |
-| Deep links and notification taps | Links and intents for Home, Explore, the Reels tab, search, hashtag and location pages land on Messages; single items, DMs and the account pages open as usual | `Postbox link router` |
-| Home feed, Explore, Reels tab, "more like this" | The requests behind them fail, so the surface renders empty however it was reached, and a few more suggested and ad units are dropped at the parser | `Postbox network block` |
+| Launcher long-press shortcuts | Static shortcuts are stripped from the manifest. Instagram publishes its dynamic ones when the app goes to the background, so its publish calls are redirected to code that publishes nothing, and whatever exists is cleared on launch, on resume and when the app leaves the screen. Shortcuts already pinned to the home screen are disabled | `Postbox shortcut lock` |
+| Deep links and notification taps | Links and intents for Home, Explore, the Reels tab, search, hashtag and location pages land on Messages; single items, DMs and the account pages open as usual. A `/reel/<code>` or `/reels/<code>` link is opened as `/p/<code>`, because Instagram's own reel viewer loads even its first item through the blocked Reels feed | `Postbox link router` |
+| Hashtag, audio and place pages reached by a tap inside the app | A hashtag in a caption opens the search results, a post's audio label the audio page, a post's location the place page. Each is recognised by a view of its own once it is on screen and bounced to Messages. The friend map itself is left alone | `Postbox surface lock` |
+| Home feed switcher and loading placeholder | The "Instagram" title on Home no longer opens the Following / Favorites menu, and the placeholder that would shimmer forever under the stories tray is hidden | `Postbox surface lock` |
+| Home feed, Explore, Reels tab, search results, "more like this" | The requests behind them fail, so the surface renders empty however it was reached, and a few more suggested and ad units are dropped at the parser. The reels grids behind an audio, a place, a hashtag and a keyword are on the list too | `Postbox network block` |
 | Posts and reels grid on other people's profiles | The tab strip and the pager under the header are hidden on any profile that is not yours, and the requests that fill them fail | `Postbox profile grid` |
 | Suggested accounts, swipe-to-create, Reels paging | piko's own patches, enabled | `Disable discover people`, `Disable swipe to create`, `Disable Reels scrolling` |
 
@@ -257,6 +259,56 @@ Left out on purpose: piko's download, anonymous-viewing (ghost mode), typing-sta
 read-receipt, ad-block, theme and font patches, and Focus Lock (its 24-hour cool-off
 is a bypass of the lock-down). They are on the forbidden list the build asserts
 against (see below).
+
+### Checked on a device
+
+Pixel 6, Android 16, release `postbox-v2026.10.13-piko3.10.0-vantage.3`, installed
+over the previous build with `adb install -r` (the login survived), 2026-10-12.
+
+Checked and working:
+
+- Cold start lands on Messages; the bar is Home, Message, Profile.
+- Home is the stories tray with the own-story "+", the create "+" and the heart;
+  the area below is blank; tapping or long-pressing the title opens nothing.
+- A reel opened from a chat stays one reel after two swipes; a post opened from a
+  chat shows the post and nothing below it.
+- From outside the app, a `/p/` link opens the post, a `/reel/` and a `/reels/` link
+  play in the post viewer (cold and with the app already running), a profile link
+  opens the profile.
+- Your own profile has its grid and the follower lists; another account's profile
+  shows header, bio and follower lists with no grid.
+- The activity feed opens with no "Suggested for you" rows.
+- `/explore/`, `/reels/`, `/`, `/explore/tags/<tag>/`, `instagram://explore` and
+  `instagram://reels` each log `bounce <link>` and land on Messages. The startup-tab
+  extras for Reels and Search land on Messages, the one for Home on the stories tray.
+- Launcher shortcuts: `dumpsys shortcut` lists none in the foreground and none 1, 3,
+  10 and 30 seconds after HOME (before the fix: seven within 3 seconds).
+- A hashtag, "View song details" and a place's "See more" each bounce to Messages;
+  "See location" (the friend map) and the inbox search do not.
+- The piko settings screen has no row that can bring Reels, Explore or suggested
+  content back; a horizontal swipe from Home opens neither the camera nor a hidden tab.
+
+Not checked:
+
+- Posting a story, sending a message, logging out and back in with 2FA.
+- Stories were watched on the previous build, not again on this one.
+- Push notifications. The notification permission had not been granted, nobody sent
+  a message while the app was closed, and a renamed, re-signed app is exactly the
+  kind that can lose push. The push components in the manifest are the same as
+  stock Instagram's; that is all that is known.
+- A reel opened from a notification or a profile highlight.
+- `/share/reel/<id>` and `instagram://reel?...` links: they carry no shortcode to
+  rewrite and will most likely show the reel viewer's error page.
+
+Known trade-offs:
+
+- No dynamic shortcut means no Postbox contacts in Android's share sheet, and
+  message notifications may not be grouped as conversations. The three conversation
+  targets Instagram publishes are dropped with the camera and new-post shortcuts.
+- A bounce restarts the app on Messages, so a hashtag tapped inside a chat also
+  closes that chat.
+- The Following and Favorites feeds are empty rather than unreachable in principle:
+  the menu is locked and both requests are blocked.
 
 ### Installing
 
@@ -327,27 +379,32 @@ piko's `Add settings`, `Clone` (package `app.vantage.postbox`, label `Postbox`),
 `Customize navigation bar`, `Disable explore`, `Disable Reels scrolling`,
 `Hide suggested content`, `Disable discover people`, `Disable swipe to create`,
 `Sanitize share links` and `Change version code` (so a store can never offer the
-clone an update), plus the five Postbox-only patches that live in the
+clone an update), plus the six Postbox-only patches that live in the
 fork (all default off in the bundle, so a plain piko user never gets them):
 
 | Patch | What it does |
 |---|---|
 | Postbox settings lock | Fixes the bottom bar and the blocking prefs, guards the startup tab, prunes the settings screen. |
-| Postbox shortcut lock | Removes launcher shortcuts: static, dynamic and pinned. |
-| Postbox link router | Sends Home, Explore, Reels-tab, search, hashtag and location links and intents to Messages. |
-| Postbox network block | Fails the requests behind the feed, Explore, Reels and "more like this". |
+| Postbox shortcut lock | Removes launcher shortcuts: static, dynamic (never published, and cleared) and pinned. |
+| Postbox link router | Sends Home, Explore, Reels-tab, search, hashtag and location links and intents to Messages; opens single-reel links in the post viewer. |
+| Postbox network block | Fails the requests behind the feed, Explore, Reels, the search results and "more like this". |
 | Postbox profile grid | Hides the posts and reels grid on other people's profiles and blocks the requests that fill it. |
+| Postbox surface lock | Bounces the search results, audio and place pages reached by a tap inside the app; locks the Home title menu and hides the Home loading placeholder. |
 
 The Postbox patches carry no fingerprints for Instagram's obfuscated code. They edit
-piko's own extension code by class and method name, so they follow Instagram
-version bumps for free, and a piko rename fails the build instead of shipping an
-unlocked app. `traceNetwork`, an option of the network block that logs request
+piko's own extension code by class and method name, with one exception: the shortcut
+lock rewrites Instagram's calls to the framework's `ShortcutManager`, which it finds
+by the framework method name (five calls on 447.0.0.55.81; zero fails the build).
+The surface lock goes by view id names read off the running app. So they follow
+Instagram version bumps without a fingerprint to re-find, and a piko rename fails
+the build instead of shipping an unlocked app. A renamed view id does not fail the
+build: it shows as `UNRESOLVED` in the `surface: watching, ids[...]` logcat line. `traceNetwork`, an option of the network block that logs request
 paths for endpoint discovery, is never enabled in a release: `build-postbox.sh`
 refuses to build when any enabled option whose key contains `test`, `debug` or
 `trace` is on, or when a patch named in `postbox-forbidden.txt` is enabled.
 
 The assertion lists are in `config/assertions/`: `postbox-nonnegotiable.txt` (the
-ten piko patches and the five Postbox patches that must apply),
+ten piko patches and the six Postbox patches that must apply),
 `postbox-forbidden.txt` (patches that must not apply) and
 `postbox-inert-allowlist.txt` (empty on 447.0.0.55.81). Edit those, not the script.
 
@@ -738,12 +795,12 @@ bash scripts/build.sh --force                 # build + stage in build/release
   builds until a new one is minted (`apkeep -e <email> --oauth-token ...`, see
   apkeep's USAGE-google-play.md).
   Its pinned signing cert has the same rotation caveat as X's.
-- Postbox has not been run on a device yet, and what it blocks is designed, not
-  observed: the patches edit piko's own extension code, so a green build proves the
-  bundle applied and the APK is signed, not that a given screen is closed. The
-  profile-grid patch is the least certain: its view names and request paths have not
-  been checked against the real APK yet. Not yet in the patch set: hiding the
-  feed-switcher dropdown on Home.
+- Postbox closes the surfaces that were found, not every surface Instagram has. A
+  green build proves the bundle applied and the APK is signed, not that a given
+  screen is closed; see [Checked on a device](#checked-on-a-device) for what was
+  driven by hand and what was not. Pages reached by a tap inside the app are caught
+  by view id, so a page nobody has tapped into yet (an effect page, a keyword page)
+  is only as closed as the network block makes it.
   Its stock bundle has one live source (APKPure through apkeep), so an APKPure
   outage or API change stops Postbox on the first build of a new Instagram version;
   builds of a version already in `stock-cache` are unaffected. APKPure serves one

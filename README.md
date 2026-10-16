@@ -37,7 +37,7 @@ Obtainium auto-updates all nine as new releases land. The Vantage apps track the
 release date and MicroG-RE tracks its version. The settings you'd otherwise have
 to toggle by hand are baked into the patches, so a fresh install already hides
 Shorts, comments, and community posts, opens on Subscriptions, and has DeArrow
-thumbnails and copy-URL buttons. SponsorBlock, Return YouTube Dislike, and ad
+thumbnails and titles and copy-URL buttons. SponsorBlock, Return YouTube Dislike, and ad
 hiding are on as RVX defaults.
 
 Vantage M is left out of the config on purpose. It's the extra Morphe variant;
@@ -519,7 +519,7 @@ different sets and aren't listed here.
 | Return YouTube Dislike | Restores the dislike count via the RYD API. |
 | Return YouTube Username | Shows original @handles instead of display names. |
 | Remove background playback restrictions | Allows background and PiP playback for everything. |
-| Alternative thumbnails | Swaps clickbait thumbnails for DeArrow or still-frame images. |
+| DeArrow | Swaps clickbait thumbnails and titles for crowd-sourced DeArrow ones (thumbnails can use still frames instead). |
 | Sanitize sharing links | Strips tracking params like `si=` from shared links. |
 | Set transcript cookies | Fixes transcript and caption retrieval used by other features. |
 

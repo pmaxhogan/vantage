@@ -41,7 +41,7 @@ These are the app's own RVX settings export format, not generic JSON:
   (signed out): start page = Subscriptions; Shorts nav button hidden and Shorts
   shelves hidden everywhere (master `hide_shorts_shelf` + channel + watch-history;
   home/subscriptions/search are default-on); comments section hidden; community
-  posts hidden (channel + subs); DeArrow alternative thumbnails on all 5 surfaces;
+  posts hidden (channel + subs); DeArrow thumbnails on all 5 surfaces and DeArrow titles on (`dearrow_titles`, stored as `morphe_dearrow_titles`; export strips the `morphe_` prefix);
   copy-video-URL and copy-timestamp-URL overlay buttons shown; Playables hidden
   from the feed; the AI-generated video summary and Ask (Gemini) sections hidden
   in the video description. SponsorBlock / RYD

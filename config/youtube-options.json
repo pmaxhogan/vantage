@@ -34,7 +34,10 @@
             "Hide ads": {
                 "enabled": true
             },
-            "Alternative thumbnails": {
+            "DeArrow": {
+                "enabled": true
+            },
+            "Restore original titles": {
                 "enabled": true
             },
             "Bypass image region restrictions": {

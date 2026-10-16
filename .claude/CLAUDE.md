@@ -144,8 +144,10 @@ Prove it fired, do not infer it:
   not offer that rebuild to phones that already took the day's build. To force a
   phone onto a rebuild, uninstall/reinstall by hand or wait for the next day's tag;
   do not expect Obtainium to notice.
-- The YouTube and X skip logic ignore `postbox-v*` tags, and Postbox's ignores everything
-  else.
+- Each build's skip logic reads only its own tags: YouTube `v*` (`resolve-versions.sh`),
+  X `x-v*`, Claude `claude-v*`, Postbox `postbox-v*`. YouTube used to skip only `x-v*`,
+  so a newer Claude or Postbox release masked its manifest and forced a nightly rebuild
+  (fixed 2026-10-16).
 
 ## Dependabot and CI
 

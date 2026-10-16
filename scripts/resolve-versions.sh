@@ -71,14 +71,14 @@ NEEDS_BUILD="true"
 LAST_ANDDEA=""; LAST_MORPHE=""; LAST_VANTAGE=""; LAST_CLI=""
 if [ -n "$GH_REPO" ]; then
   log "Reading last build release manifest from $GH_REPO ..."
-  # Newest release whose tag isn't the stock-cache tag and that has the manifest.
-  # Vantage X publishes its own "x-v..." releases into this same repo on its own
-  # cadence; they carry built-versions-x.json, not built-versions.json, so they
-  # must be skipped here or a newer X release would mask the last YouTube build
-  # and rebuild it every night.
+  # Newest YouTube build release: tags "v<date>-anddea...". Vantage X ("x-v..."),
+  # Claude ("claude-v...") and Postbox ("postbox-v...") publish into this same repo
+  # on their own cadence with their own manifests, so anything not starting with
+  # "v" must be skipped here or a newer one masks the last YouTube build and it
+  # rebuilds every night (seen 2026-10-13 behind postbox-v2026.10.13).
   last_tag="$(gh api "repos/$GH_REPO/releases" --paginate 2>/dev/null \
     | jq -r --arg cache "$STOCK_CACHE_TAG" \
-        '[.[] | select(.tag_name != $cache and (.tag_name|startswith("x-v")|not))]
+        '[.[] | select(.tag_name != $cache and (.tag_name|startswith("v")))]
          | first | .tag_name // empty')" || true
   if [ -n "$last_tag" ]; then
     if gh release download "$last_tag" -R "$GH_REPO" -p 'built-versions.json' \

@@ -4,7 +4,7 @@
 Hide ads
 SponsorBlock
 Return YouTube Dislike
-Alternative thumbnails
+DeArrow
 Hide comments components
 Hide feed components
 Description components

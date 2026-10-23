@@ -20,6 +20,13 @@ set -euo pipefail
 load_build_env
 command -v jq >/dev/null 2>&1 || die "jq not found"
 
+# Patch names from a morphe-cli result JSON. morphe-cli 1.19.0 (the Patcher 2.0
+# engine) writes appliedPatches as plain strings; 1.18.x and older wrote
+# {"name": ...} objects. failedPatches is still objects. Accept either shape.
+patch_names() { # <result.json> <appliedPatches|failedPatches>
+  jq -r --arg k "$2" '.[$k][] | if type == "object" then .name else . end' "$1"
+}
+
 # ============================ keystore-preflight ============================
 keystore_preflight() {
   local ks="${1:?keystore path}"
@@ -65,11 +72,11 @@ assert_variant() {
   # --- 1. failedPatches must be empty --------------------------------------
   local nfailed; nfailed="$(jq '.failedPatches | length' "$RESULT")"
   if [ "$nfailed" -ne 0 ]; then
-    warn "[$NAME] failedPatches is non-empty ($nfailed):"; jq -r '.failedPatches[].name' "$RESULT" >&2; fail=1
+    warn "[$NAME] failedPatches is non-empty ($nfailed):"; patch_names "$RESULT" failedPatches >&2; fail=1
   else log "[$NAME] failedPatches == [] OK"; fi
 
   # --- 2. every non-negotiable name present in appliedPatches[] ------------
-  local applied; applied="$(jq -r '.appliedPatches[].name' "$RESULT")"
+  local applied; applied="$(patch_names "$RESULT" appliedPatches)"
   local -a need; read_list need "$NONNEG"
   local n
   for n in "${need[@]}"; do
@@ -100,7 +107,7 @@ assert_variant() {
   if [ -n "$COUNT" ]; then
     local got; got="$(jq '.appliedPatches | length' "$RESULT")"
     if [ "$got" -ne "$COUNT" ]; then
-      warn "[$NAME] applied-count $got != expected $COUNT"; jq -r '.appliedPatches[].name' "$RESULT" | sort >&2; fail=1
+      warn "[$NAME] applied-count $got != expected $COUNT"; patch_names "$RESULT" appliedPatches | sort >&2; fail=1
     else log "[$NAME] applied-count == $COUNT OK"; fi
   fi
 
@@ -288,9 +295,9 @@ assert_claude_clone() {
     [ -f "$RESULT" ] || die "[$NAME] not found: $RESULT"
     local nfailed; nfailed="$(jq '.failedPatches | length' "$RESULT")"
     if [ "$nfailed" -ne 0 ]; then
-      warn "[$NAME] failedPatches is non-empty ($nfailed):"; jq -r '.failedPatches[].name' "$RESULT" >&2; fail=1
+      warn "[$NAME] failedPatches is non-empty ($nfailed):"; patch_names "$RESULT" failedPatches >&2; fail=1
     else log "[$NAME] failedPatches == [] OK"; fi
-    if jq -r '.appliedPatches[].name' "$RESULT" | grep -Fxq "$PATCHNAME"; then
+    if patch_names "$RESULT" appliedPatches | grep -Fxq "$PATCHNAME"; then
       log "[$NAME] patch '$PATCHNAME' applied OK"
     else
       warn "[$NAME] patch '$PATCHNAME' MISSING from appliedPatches (renamed upstream, or dropped by the bundle?)"; fail=1
